@@ -25,4 +25,11 @@ public interface OrderRepository {
      * 사용자별 주문 총 개수 조회 (상태 필터링)
      */
     long countByUserId(Long userId, OrderStatus orderStatus);
+
+    /**
+     * 동시성 제어를 위한 주문 조회 (비관적 락)
+     * @param orderId 주문 ID
+     * @return 주문 Optional
+     */
+    Optional<Orders> findByIdWithLock(Long orderId);
 }

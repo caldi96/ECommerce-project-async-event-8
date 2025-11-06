@@ -3,9 +3,6 @@ package io.hhplus.ECommerce.ECommerce_project.order.presentation.response;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.entity.OrderItem;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.entity.Orders;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.enums.OrderStatus;
-import io.hhplus.ECommerce.ECommerce_project.payment.domain.entity.Payment;
-import io.hhplus.ECommerce.ECommerce_project.payment.domain.enums.PaymentMethod;
-import io.hhplus.ECommerce.ECommerce_project.payment.domain.enums.PaymentStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -21,13 +18,9 @@ public record CreateOrderFromCartResponse(
     BigDecimal finalAmount,
     OrderStatus orderStatus,
     LocalDateTime orderedAt,
-    Long paymentId,
-    PaymentStatus paymentStatus,
-    PaymentMethod paymentMethod,
-    LocalDateTime paidAt,
     List<OrderItemResponse> orderItems
 ) {
-    public static CreateOrderFromCartResponse from(Orders order, Payment payment, List<OrderItem> orderItems) {
+    public static CreateOrderFromCartResponse from(Orders order, List<OrderItem> orderItems) {
         return new CreateOrderFromCartResponse(
             order.getId(),
             order.getUserId(),
@@ -38,10 +31,6 @@ public record CreateOrderFromCartResponse(
             order.getFinalAmount(),
             order.getStatus(),
             order.getCreatedAt(),
-            payment.getId(),
-            payment.getPaymentStatus(),
-            payment.getPaymentMethod(),
-            payment.getCompletedAt(),
             orderItems.stream()
                 .map(OrderItemResponse::from)
                 .toList()

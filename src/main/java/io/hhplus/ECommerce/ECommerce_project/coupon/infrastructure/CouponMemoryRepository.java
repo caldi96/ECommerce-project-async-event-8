@@ -82,4 +82,17 @@ public class CouponMemoryRepository implements CouponRepository {
             return coupon;
         }
     }
+
+    /**
+     * 동시성 제어를 위한 쿠폰 조회 (비관적 락)
+     * 쿠폰 ID별로 락을 걸어서 Race Condition 방지
+     */
+    @Override
+    public Optional<Coupon> findByIdWithLock(Long couponId) {
+        Object lock = getLock(couponId);
+
+        synchronized (lock) {
+            return Optional.ofNullable(couponMap.get(couponId));
+        }
+    }
 }

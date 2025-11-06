@@ -15,7 +15,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderMemoryRepository implements OrderRepository {
     private final Map<Long, Orders> orderMap = new ConcurrentHashMap<>();
+    private final Map<Long, Object> lockMap = new ConcurrentHashMap<>();  // 주문별 락 객체
     private final SnowflakeIdGenerator idGenerator;
+
+    /**
+     * 주문 ID별 락 객체 획득
+     */
+    private Object getLock(Long orderId) {
+        return lockMap.computeIfAbsent(orderId, k -> new Object());
+    }
 
     @Override
     public Orders save(Orders orders) {
@@ -23,7 +31,17 @@ public class OrderMemoryRepository implements OrderRepository {
         if (orders.getId() == null) {
             orders.setId(idGenerator.nextId());
         }
-        orderMap.put(orders.getId(), orders);
+
+        // 주문 ID가 있는 경우 락을 걸고 저장 (동시성 제어)
+        if (orders.getId() != null) {
+            Object lock = lockMap.computeIfAbsent(orders.getId(), k -> new Object());
+            synchronized (lock) {
+                orderMap.put(orders.getId(), orders);
+            }
+        } else {
+            orderMap.put(orders.getId(), orders);
+        }
+
         return orders;
     }
 
@@ -59,5 +77,18 @@ public class OrderMemoryRepository implements OrderRepository {
                 .filter(order -> order.getUserId().equals(userId))
                 .filter(order -> orderStatus == null || order.getStatus() == orderStatus)
                 .count();
+    }
+
+    /**
+     * 동시성 제어를 위한 주문 조회 (비관적 락)
+     * 주문 ID별로 락을 걸어서 Race Condition 방지
+     */
+    @Override
+    public Optional<Orders> findByIdWithLock(Long orderId) {
+        Object lock = getLock(orderId);
+
+        synchronized (lock) {
+            return Optional.ofNullable(orderMap.get(orderId));
+        }
     }
 }

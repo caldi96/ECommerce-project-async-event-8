@@ -88,7 +88,7 @@ public class Orders {
             discount,
             finalAmount,
             shippingFee,
-            OrderStatus.PENDING,  // 초기 상태는 PENDING
+            OrderStatus.COMPLETED,  // 주문 등록 완료 상태
             point,
             usedPointIds != null ? new ArrayList<>(usedPointIds) : new ArrayList<>(),  // 방어적 복사
             now,   // createdAt
@@ -104,9 +104,9 @@ public class Orders {
      * 결제 완료 처리
      */
     public void paid() {
-        if (this.status != OrderStatus.PENDING) {
+        if (this.status != OrderStatus.COMPLETED) {
             throw new OrderException(ErrorCode.ORDER_INVALID_STATUS_FOR_PAYMENT,
-                "대기 중인 주문만 결제할 수 있습니다. 현재 상태: " + this.status);
+                "주문 완료된 주문만 결제할 수 있습니다. 현재 상태: " + this.status);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -163,9 +163,9 @@ public class Orders {
      * 결제 실패 처리
      */
     public void paymentFailed() {
-        if (this.status != OrderStatus.PENDING) {
+        if (this.status != OrderStatus.COMPLETED) {
             throw new OrderException(ErrorCode.ORDER_INVALID_STATUS_FOR_PAYMENT,
-                "대기 중인 주문만 결제 실패 처리할 수 있습니다. 현재 상태: " + this.status);
+                "주문 완료된 주문만 결제 실패 처리할 수 있습니다. 현재 상태: " + this.status);
         }
 
         LocalDateTime now = LocalDateTime.now();

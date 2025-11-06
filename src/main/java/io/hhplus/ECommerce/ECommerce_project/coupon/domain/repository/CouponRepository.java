@@ -30,4 +30,11 @@ public interface CouponRepository {
      * @return 업데이트된 쿠폰
      */
     Coupon increaseIssuedQuantityWithLock(Long couponId);
+
+    /**
+     * 동시성 제어를 위한 쿠폰 조회 (비관적 락)
+     * @param couponId 쿠폰 ID
+     * @return 쿠폰 Optional
+     */
+    Optional<Coupon> findByIdWithLock(Long couponId);
 }

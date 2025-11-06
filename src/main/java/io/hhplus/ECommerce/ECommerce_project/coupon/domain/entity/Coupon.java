@@ -317,10 +317,13 @@ public class Coupon {
 
     /**
      * 쿠폰 사용 시 사용량 증가
-     * 주의: usageCount는 전체 사용 횟수이므로 totalQuantity와 직접 비교하지 않음
-     * 실제 사용 가능 여부는 UserCoupon에서 perUserLimit으로 검증
+     * totalQuantity 제한도 함께 검증
      */
     public void increaseUsageCount() {
+        if (this.usageCount >= this.totalQuantity) {
+            throw new CouponException(ErrorCode.COUPON_ALL_ISSUED,
+                "쿠폰 사용 가능 횟수를 초과했습니다. (총 " + this.totalQuantity + "번 사용 가능)");
+        }
         this.usageCount++;
         this.updatedAt = LocalDateTime.now();
     }

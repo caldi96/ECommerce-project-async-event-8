@@ -14,9 +14,6 @@ import io.hhplus.ECommerce.ECommerce_project.order.domain.entity.Orders;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.repository.OrderItemRepository;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.repository.OrderRepository;
 import io.hhplus.ECommerce.ECommerce_project.order.presentation.response.CreateOrderFromCartResponse;
-import io.hhplus.ECommerce.ECommerce_project.payment.domain.entity.Payment;
-import io.hhplus.ECommerce.ECommerce_project.payment.domain.enums.PaymentMethod;
-import io.hhplus.ECommerce.ECommerce_project.payment.domain.repository.PaymentRepository;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.entity.Point;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.entity.PointUsageHistory;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.repository.PointRepository;
@@ -48,7 +45,6 @@ public class CreateOrderFromCartUseCase {
     private final UserCouponRepository userCouponRepository;
     private final PointRepository pointRepository;
     private final PointUsageHistoryRepository pointUsageHistoryRepository;
-    private final PaymentRepository paymentRepository;
 
     @Transactional
     public CreateOrderFromCartResponse execute(CreateOrderFromCartCommand command) {
@@ -163,25 +159,27 @@ public class CreateOrderFromCartUseCase {
                     .findByUserIdAndCouponId(command.userId(), command.couponId())
                     .orElseThrow(() -> new CouponException(ErrorCode.USER_COUPON_NOT_FOUND));
 
-            // 6-2. 쿠폰 정보 조회
-            Coupon coupon = couponRepository.findById(command.couponId())
+            // 6-2. 쿠폰 정보 조회 (비관적 락 적용)
+            Coupon coupon = couponRepository.findByIdWithLock(command.couponId())
                     .orElseThrow(() -> new CouponException(ErrorCode.COUPON_NOT_FOUND));
 
             // 6-3. 쿠폰 유효성 검증 (활성화, 사용 가능 기간 확인)
             coupon.validateAvailability();
 
-            // 6-4. 사용자 쿠폰 사용 가능 여부
+            // 6-4. 쿠폰 사용 횟수 증가 (totalQuantity 제한 검증 포함)
+            coupon.increaseUsageCount();
+
+            // 6-5. 사용자 쿠폰 사용 가능 여부
             userCoupon.validateCanUse(coupon.getPerUserLimit());
 
-            // 6-5. 할인 금액 계산 (최소 주문 금액 검증 포함)
+            // 6-6. 할인 금액 계산 (최소 주문 금액 검증 포함)
             discountAmount = coupon.calculateDiscountAmount(totalAmount);
 
-            // 6-6. 쿠폰 사용 처리
+            // 6-7. 쿠폰 사용 처리
             userCoupon.use(coupon.getPerUserLimit());
             userCouponRepository.save(userCoupon);
 
-            // 6-7. 쿠폰 사용 횟수 증가
-            coupon.increaseUsageCount();
+            // 6-8. 쿠폰 저장
             couponRepository.save(coupon);
 
             // 롤백을 위한 정보 저장
@@ -310,42 +308,8 @@ public class CreateOrderFromCartUseCase {
             cartRepository.deleteById((cart.getId()));
         }
 
-        // 13. 결제 정보 생성
-        Payment payment = Payment.createPayment(
-                savedOrder.getId(),
-                savedOrder.getFinalAmount(),
-                PaymentMethod.CARD
-        );
-
-        // 14. 결제 처리 (실제로는 외부 결제 API 호출)
-        // TODO: 실제 결제 API 연동 시 이 부분 구현
-        try {
-            // 외부 결제 API 호출 시뮬레이션
-            // boolean paymentSuccess = externalPaymentAPI.process(payment);
-
-            // 현재는 항상 성공으로 처리 (테스트용)
-            payment.complete();
-            Payment savedPayment = paymentRepository.save(payment);
-
-            // 15. 주문 상태를 PAID로 변경
-            savedOrder.paid();
-            orderRepository.save(savedOrder);
-
-            return CreateOrderFromCartResponse.from(savedOrder, savedPayment, orderItems);
-
-        } catch (Exception e) {
-            // 결제 실패 처리
-            payment.fail(e.getMessage());
-            paymentRepository.save(payment);
-
-            // 주문 상태를 PAYMENT_FAILED로 변경
-            savedOrder.paymentFailed();
-            orderRepository.save(savedOrder);
-
-            // 예외를 다시 던져서 보상 트랜잭션이 실행되도록 함
-            throw new PaymentException(ErrorCode.PAYMENT_ALREADY_FAILED,
-                "결제 처리 중 오류가 발생했습니다: " + e.getMessage());
-        }
+        // 13. 주문 등록 완료 응답 반환 (결제는 별도 API로 처리)
+        return CreateOrderFromCartResponse.from(savedOrder, orderItems);
     }
 
     // 주문 금액 계산 헬퍼 메서드
