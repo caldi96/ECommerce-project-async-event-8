@@ -119,9 +119,9 @@ public class Orders {
      * 주문 취소 처리 (결제 전)
      */
     public void cancel() {
-        if (this.status != OrderStatus.PENDING) {
+        if (this.status != OrderStatus.COMPLETED) {
             throw new OrderException(ErrorCode.ORDER_INVALID_STATUS_FOR_CANCEL,
-                "대기 중인 주문만 취소할 수 있습니다. 현재 상태: " + this.status);
+                "주문 완료 상태의 주문만 취소할 수 있습니다. 현재 상태: " + this.status);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -204,10 +204,10 @@ public class Orders {
     }
 
     /**
-     * 취소 가능 여부 (PENDING 상태만)
+     * 취소 가능 여부 (COMPLETED 상태만)
      */
     public boolean canCancel() {
-        return this.status == OrderStatus.PENDING;
+        return this.status == OrderStatus.COMPLETED;
     }
 
     /**
