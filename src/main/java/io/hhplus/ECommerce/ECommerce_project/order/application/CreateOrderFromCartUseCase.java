@@ -106,39 +106,25 @@ public class CreateOrderFromCartUseCase {
             );
         }
 
-        // 3-2. 상품 조회 및 검증 (모든 상품에 대해 먼저 검증)
-        // 동시성 제어를 위해 락을 걸고 조회
+        // 3-2. 상품 조회 및 재고 차감 (데드락 방지: productId 오름차순 정렬, 원자적 처리)
+        List<Map.Entry<Long, Integer>> sortedEntries = productOrderQuantityMap.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .toList();
+
         Map<Long, Product> productMap = new HashMap<>();
-        for (Map.Entry<Long, Integer> entry : productOrderQuantityMap.entrySet()) {
+        for (Map.Entry<Long, Integer> entry : sortedEntries) {
             Long productId = entry.getKey();
             Integer totalQuantity = entry.getValue();
 
-            // 상품 조회 (비관적 락 적용)
-            Product product = productRepository.findByIdWithLock(productId)
-                    .orElseThrow(() -> new ProductException(ErrorCode.PRODUCT_NOT_FOUND));
-
-            // 상품 주문 가능 여부 확인 (활성화, 재고)
-            if (!product.canOrder(totalQuantity)) {
-                throw new OrderException(ErrorCode.ORDER_PRODUCT_CANNOT_BE_ORDERED);
+            // 상품 조회 및 재고 차감 (비관적 락 적용 - 원자적 처리)
+            // decreaseStockWithLock은 락 안에서 조회, 검증, 재고 차감, 판매량 증가를 원자적으로 수행
+            Product product = productRepository.decreaseStockWithLock(productId, totalQuantity);
+            if (product == null) {
+                throw new ProductException(ErrorCode.PRODUCT_NOT_FOUND);
             }
 
+            // 주문 금액 계산을 위해 productMap에 저장
             productMap.put(productId, product);
-        }
-
-        // 3-3. 모든 검증이 완료된 후 재고 차감 및 판매량 증가
-        for (Map.Entry<Long, Integer> entry : productOrderQuantityMap.entrySet()) {
-            Long productId = entry.getKey();
-            Integer totalQuantity = entry.getValue();
-            Product product = productMap.get(productId);
-
-            // 재고 차감 (동시성 처리 필요!)
-            product.decreaseStock(totalQuantity);
-
-            // 판매량 증가
-            product.increaseSoldCount(totalQuantity);
-
-            // 변경사항 저장
-            productRepository.save(product);
 
             // 롤백을 위한 정보 저장
             rollbackContext.productQuantityMap.put(productId, totalQuantity);
@@ -154,30 +140,28 @@ public class CreateOrderFromCartUseCase {
         BigDecimal discountAmount = BigDecimal.ZERO;
 
         if (command.couponId() != null) {
-            // 6-1. 사용자 쿠폰 조회
+            // 6-1. 사용자 쿠폰 조회 (미리 발급받아야 함 - A방식: 선착순 쿠폰 발급)
             UserCoupon userCoupon = userCouponRepository
                     .findByUserIdAndCouponId(command.userId(), command.couponId())
-                    .orElseThrow(() -> new CouponException(ErrorCode.USER_COUPON_NOT_FOUND));
+                    .orElseThrow(() -> new CouponException(ErrorCode.USER_COUPON_NOT_FOUND,
+                        "쿠폰을 먼저 발급받아야 합니다."));
 
-            // 6-2. 쿠폰 검증 및 사용 횟수 증가 (원자적 연산으로 동시성 문제 해결)
-            // 락 안에서 조회, 유효성 검증, 사용 횟수 증가를 모두 수행하여 Race Condition 방지
-            Coupon coupon = couponRepository.validateAndIncreaseUsageWithLock(command.couponId());
-            if (coupon == null) {
-                throw new CouponException(ErrorCode.COUPON_NOT_FOUND);
-            }
+            // 6-2. 쿠폰 조회 및 검증
+            Coupon coupon = couponRepository.findById(command.couponId())
+                    .orElseThrow(() -> new CouponException(ErrorCode.COUPON_NOT_FOUND));
 
-            // 6-5. 사용자 쿠폰 사용 가능 여부
+            // 6-3. 쿠폰 유효성 검증 (활성화, 기간 등)
+            coupon.validateAvailability();
+
+            // 6-4. 사용자 쿠폰 사용 가능 여부 확인
             userCoupon.validateCanUse(coupon.getPerUserLimit());
 
-            // 6-6. 할인 금액 계산 (최소 주문 금액 검증 포함)
+            // 6-5. 할인 금액 계산 (최소 주문 금액 검증 포함)
             discountAmount = coupon.calculateDiscountAmount(totalAmount);
 
-            // 6-7. 쿠폰 사용 처리
+            // 6-6. 쿠폰 사용 처리 (usedCount만 증가)
             userCoupon.use(coupon.getPerUserLimit());
             userCouponRepository.save(userCoupon);
-
-            // 6-8. 쿠폰 저장
-            couponRepository.save(coupon);
 
             // 롤백을 위한 정보 저장
             rollbackContext.userCoupon = userCoupon;
@@ -227,18 +211,13 @@ public class CreateOrderFromCartUseCase {
         }
 
         // 8. Order 생성 (최종 금액은 Order에서 create할때 계산)
-        List<Long> usedPointIds = pointsToUpdate.stream()
-                .map(Point::getId)
-                .toList();
-
         Orders order = Orders.createOrder(
                 command.userId(),
                 totalAmount,            // 상품 총액
                 shippingFee,            // 배송비
                 command.couponId(),     // 쿠폰 ID
                 discountAmount,         // 쿠폰 할인 금액
-                pointAmount,            // 포인트 사용 금액
-                usedPointIds            // 사용한 포인트 ID 리스트
+                pointAmount             // 포인트 사용 금액
         );
 
         // 9. 저장
@@ -275,13 +254,16 @@ public class CreateOrderFromCartUseCase {
                 rollbackContext.pointUsageMap.put(originalPoint, usageAmount);
             }
 
-            // 10-5. User의 포인트 잔액 차감
-            user.usePoint(pointAmount);
-            userRepository.save(user);
+            if (pointAmount.compareTo(BigDecimal.ZERO) > 0) {
+                // 10-5. User의 포인트 잔액 차감
+                user.usePoint(pointAmount);
+                userRepository.save(user);
 
-            // 10-6. 롤백을 위한 User 정보 저장
-            rollbackContext.user = user;
-            rollbackContext.usedPointAmount = pointAmount;
+                // 10-6. 롤백을 위한 User 정보 저장
+                rollbackContext.user = user;
+                rollbackContext.usedPointAmount = pointAmount;
+
+            }
         }
 
         // 11. OrderItem 생성
@@ -360,10 +342,6 @@ public class CreateOrderFromCartUseCase {
                 // UserCoupon 사용 횟수 복구
                 rollbackContext.userCoupon.cancelUse(rollbackContext.coupon.getPerUserLimit());
                 userCouponRepository.save(rollbackContext.userCoupon);
-
-                // Coupon 사용 횟수 감소
-                rollbackContext.coupon.decreaseUsageCount();
-                couponRepository.save(rollbackContext.coupon);
             } catch (Exception e) {
                 System.err.println("쿠폰 롤백 실패: " + e.getMessage());
             }
@@ -371,18 +349,12 @@ public class CreateOrderFromCartUseCase {
 
         // 4. 상품 재고 복구
         for (Map.Entry<Long, Integer> entry : rollbackContext.productQuantityMap.entrySet()) {
-            try {
-                Long productId = entry.getKey();
-                Integer quantity = entry.getValue();
+            Long productId = entry.getKey();
+            Integer quantity = entry.getValue();
 
-                Product product = productRepository.findById(productId).orElse(null);
-                if (product != null) {
-                    // 재고 복구
-                    product.increaseStock(quantity);
-                    // 판매량 복구
-                    product.decreaseSoldCount(quantity);
-                    productRepository.save(product);
-                }
+            try {
+                // ProductMemoryRepository에서 락 안에서 재고 증가 + 판매량 감소 원자 처리
+                productRepository.restoreStockWithLock(productId, quantity);
             } catch (Exception e) {
                 System.err.println("상품 재고 롤백 실패: " + e.getMessage());
             }

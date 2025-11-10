@@ -205,23 +205,23 @@ public class CreateOrderFromProductUseCase {
 2. 재고 검증, 차감, 저장이 하나의 락 범위 내에서 실행
 3. 같은 상품 ID에 대한 요청은 순차적으로 처리됨
 
-### 2. 쿠폰 사용 동시성 제어
+### 2. 쿠폰 발급 동시성 제어
 
 #### Entity 비즈니스 로직
 ```java
 @Getter
 @Setter
 public class Coupon {
-    private int totalQuantity;  // 총 사용 가능 횟수
-    private int usageCount;     // 현재 사용 횟수
+    private int totalQuantity;    // 총 발급 가능 수량
+    private int issuedQuantity;   // 현재 발급된 수량
+    private int perUserLimit;     // 사용자당 발급 제한
 
-    public void increaseUsageCount() {
-        // 사용 가능 횟수 검증
-        if (this.usageCount >= this.totalQuantity) {
-            throw new CouponException(ErrorCode.COUPON_ALL_ISSUED,
-                "쿠폰 사용 가능 횟수를 초과했습니다. (총 " + this.totalQuantity + "번 사용 가능)");
+    public void increaseIssuedQuantity() {
+        // 발급 가능 수량 검증
+        if (this.issuedQuantity >= this.totalQuantity) {
+            throw new CouponException(ErrorCode.COUPON_ALL_ISSUED);
         }
-        this.usageCount++;
+        this.issuedQuantity++;
         this.updatedAt = LocalDateTime.now();
     }
 }
@@ -249,35 +249,34 @@ public class CouponMemoryRepository implements CouponRepository {
 ```java
 @Service
 @RequiredArgsConstructor
-public class CreateOrderFromProductUseCase {
+public class IssueCouponUseCase {
 
     @Transactional
     public Response execute(Command command) {
-        if (command.couponId() != null) {
-            // 비관적 락으로 쿠폰 조회
-            Coupon coupon = couponRepository.findByIdWithLock(command.couponId())
-                .orElseThrow(() -> new CouponException(ErrorCode.COUPON_NOT_FOUND));
+        // 비관적 락으로 쿠폰 조회
+        Coupon coupon = couponRepository.findByIdWithLock(command.couponId())
+            .orElseThrow(() -> new CouponException(ErrorCode.COUPON_NOT_FOUND));
 
-            // 쿠폰 유효성 검증
-            coupon.validateAvailability();
+        // 쿠폰 유효성 검증
+        coupon.validateAvailability();
 
-            // 사용 횟수 증가 (totalQuantity 검증 포함)
-            coupon.increaseUsageCount();
+        // 발급 수량 증가 (totalQuantity 검증 포함)
+        coupon.increaseIssuedQuantity();
 
-            // 사용자별 쿠폰 사용 처리
-            userCoupon.validateCanUse(coupon.getPerUserLimit());
-            userCoupon.use(coupon.getPerUserLimit());
+        // 사용자별 쿠폰 발급 (perUserLimit 검증 포함)
+        UserCoupon userCoupon = UserCoupon.issue(userId, coupon.getId(), coupon.getPerUserLimit());
+        userCouponRepository.save(userCoupon);
 
-            couponRepository.save(coupon);
-        }
+        couponRepository.save(coupon);
     }
 }
 ```
 
 **핵심 포인트:**
-1. `increaseUsageCount()` 내부에서 totalQuantity 검증
+1. `increaseIssuedQuantity()` 내부에서 totalQuantity 검증
 2. 검증과 증가가 원자적으로 실행됨
-3. 락 범위 내에서 모든 쿠폰 관련 작업 완료
+3. 락 범위 내에서 모든 쿠폰 발급 작업 완료
+4. 사용자별 발급 제한은 UserCoupon 엔티티에서 관리
 
 ### 3. 결제 중복 방지 동시성 제어
 
@@ -450,24 +449,24 @@ void testConcurrentOrdersBySameUser() throws InterruptedException {
 
 ### 2. 쿠폰 동시성 테스트 (CouponConcurrencyTest)
 
-#### 테스트 1: 총 사용 횟수 제한
+#### 테스트 1: 총 발급 횟수 제한
 ```java
 @Test
-@DisplayName("총 발급 횟수가 제한된 쿠폰을 동시에 사용할 때 제한 횟수만큼만 성공해야 한다")
-void testConcurrentCouponUsageWithTotalLimit() throws InterruptedException {
-    // given: 총 10번 사용 가능한 쿠폰
-    // when: 20명이 동시에 쿠폰 사용 시도
+@DisplayName("총 발급 횟수가 제한된 쿠폰을 동시에 발급할 때 제한 횟수만큼만 성공해야 한다")
+void testConcurrentCouponIssuanceWithTotalLimit() throws InterruptedException {
+    // given: 총 10개 발급 가능한 쿠폰
+    // when: 20명이 동시에 쿠폰 발급 시도
 
     // then
     assertThat(successCount.get()).isEqualTo(10);  // 10명만 성공
     assertThat(failCount.get()).isEqualTo(10);     // 10명 실패
-    assertThat(finalCoupon.getUsageCount()).isEqualTo(10);  // 사용 횟수 정확히 10
+    assertThat(finalCoupon.getIssuedQuantity()).isEqualTo(10);  // 발급 수량 정확히 10
 }
 ```
 
 **검증 결과:**
-- ✅ 정확히 10번만 사용됨
-- ✅ 사용 횟수 초과 방지
+- ✅ 정확히 10개만 발급됨
+- ✅ 발급 수량 초과 방지
 
 #### 테스트 2: 사용자별 사용 횟수 제한
 ```java

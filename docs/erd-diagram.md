@@ -88,7 +88,7 @@ Table order_items {
     quantity int [not null]
     unit_price decimal(10,2) [not null]
     subtotal decimal(10,2) [not null] // quantity * unit_price
-    status varchar  // 주문완료, 주문취소, 반품, 환불, 구매확정
+    status varchar  // not null 주문완료, 주문취소, 반품, 환불, 구매확정
     confirmed_at timestamp
     cancelled_at timestamp
     returned_at timestamp
@@ -123,7 +123,6 @@ Table points {
     created_at timestamp [not null, default: `now()`]
     indexes {
         (user_id)
-        (order_id)
         (created_at)
     }
 }
@@ -131,7 +130,7 @@ Table points {
 Table pointUsageHistory {
     id bigint [pk]
     point_id bigint [ref: > points.id, not null]
-    order_id [ref: > orders.id, not null]
+    order_id bigint [ref: > orders.id, not null]
     usedAmount decimal(10,2) [not null] // 사용한 포인트 금액
     created_at timestamp [not null, default: `now()`]
     canceled_at timestamp
@@ -149,7 +148,7 @@ Table coupons {
     // 수량 관리
     total_quantity int // 총 발급 가능 수량 (null이면 무제한)
     issued_quantity int [default: 0] // 발급된 수량
-    usage_count int [default: 0] // 현재까지 사용된 횟수
+    // usage_count int [default: 0] // 현재까지 사용된 횟수
     per_user_limit int [default: 1] // 1인당 사용 가능 횟수
     // 유효 기간
     start_date timestamp [not null] // 시작 시점
@@ -176,6 +175,7 @@ Table user_coupons {
         (user_id, coupon_id)
         (user_id, status)
         (expired_at)
+        (coupon_id, status)  // 쿠폰별 사용 현황 조회
     }
 }
 

@@ -146,13 +146,10 @@ public class CreatePaymentUseCase {
                             .orElse(null);
 
                     if (userCoupon != null && coupon != null) {
-                        // 쿠폰 사용 취소 처리
+                        // 쿠폰 사용 취소 처리 (usedCount 감소)
+                        // issuedQuantity는 복구하지 않음 (한번 발급되면 영구적)
                         userCoupon.cancelUse(coupon.getPerUserLimit());
                         userCouponRepository.save(userCoupon);
-
-                        // 쿠폰 사용 횟수 감소
-                        coupon.decreaseUsageCount();
-                        couponRepository.save(coupon);
                     }
                 } catch (Exception e) {
                     System.err.println("쿠폰 복구 실패 (Coupon ID: " + order.getCouponId() + "): " + e.getMessage());

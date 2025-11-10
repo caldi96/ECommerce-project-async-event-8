@@ -98,7 +98,7 @@ class IssueCouponUseCaseTest {
         // then
         assertThatThrownBy(() -> issueCouponUseCase.execute(command))
                 .isInstanceOf(CouponException.class)
-                .hasMessage("이미 발급받은 쿠폰입니다.");
+                .hasMessage("쿠폰이 이미 발급되었습니다.");
     }
 
     @Test

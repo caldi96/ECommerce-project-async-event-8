@@ -4,6 +4,8 @@ import io.hhplus.ECommerce.ECommerce_project.common.SnowflakeIdGenerator;
 import io.hhplus.ECommerce.ECommerce_project.product.application.enums.ProductSortType;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.repository.ProductRepository;
+import io.hhplus.ECommerce.ECommerce_project.common.exception.OrderException;
+import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -18,6 +20,13 @@ public class ProductMemoryRepository implements ProductRepository {
     private final Map<Long, Object> lockMap = new ConcurrentHashMap<>(); // 상품별 락 객체
     private final SnowflakeIdGenerator idGenerator;
 
+    /**
+     * 상품 ID별 락 객체 획득
+     */
+    private Object getLock(Long productId) {
+        return lockMap.computeIfAbsent(productId, k -> new Object());
+    }
+
     @Override
     public Product save(Product product) {
         // ID가 없으면 Snowflake ID 생성
@@ -27,7 +36,7 @@ public class ProductMemoryRepository implements ProductRepository {
 
         // 상품 ID가 있는 경우 락을 걸고 저장 (동시성 제어)
         if (product.getId() != null) {
-            Object lock = lockMap.computeIfAbsent(product.getId(), k -> new Object());
+            Object lock = getLock(product.getId());
             synchronized (lock) {
                 productMap.put(product.getId(), product);
             }
@@ -46,13 +55,37 @@ public class ProductMemoryRepository implements ProductRepository {
 
     @Override
     public Optional<Product> findByIdWithLock(Long id) {
-        // 상품별 락 객체 획득 (없으면 생성)
-        Object lock = lockMap.computeIfAbsent(id, k -> new Object());
+        Object lock = getLock(id);
 
-        // 해당 상품에 대한 락을 획득하고 조회
         synchronized (lock) {
             return Optional.ofNullable(productMap.get(id))
                     .filter(p -> p.getDeletedAt() == null);
+        }
+    }
+
+    /**
+     * 재고 차감 (비관적 락 적용)
+     * 락 안에서 상품 조회, 검증, 재고 차감, 판매량 증가를 원자적으로 수행하여 동시성 문제 해결
+     */
+    @Override
+    public Product decreaseStockWithLock(Long productId, int quantity) {
+        Object lock = getLock(productId);
+
+        synchronized (lock) {
+            Product product = productMap.get(productId);
+            if (product != null) {
+                // 상품 주문 가능 여부 확인 (활성화, 재고)
+                if (!product.canOrder(quantity)) {
+                    throw new OrderException(
+                            ErrorCode.ORDER_PRODUCT_CANNOT_BE_ORDERED);
+                }
+
+                // 재고 차감 및 판매량 증가를 락 안에서 원자적으로 수행
+                product.decreaseStock(quantity);
+                product.increaseSoldCount(quantity);
+                productMap.put(productId, product);
+            }
+            return product;
         }
     }
 
@@ -62,8 +95,7 @@ public class ProductMemoryRepository implements ProductRepository {
      */
     @Override
     public Product restoreStockWithLock(Long productId, int quantity) {
-        // 상품별 락 객체 획득
-        Object lock = lockMap.computeIfAbsent(productId, k -> new Object());
+        Object lock = getLock(productId);
 
         synchronized (lock) {
             Product product = productMap.get(productId);
@@ -98,15 +130,11 @@ public class ProductMemoryRepository implements ProductRepository {
 
     @Override
     public List<Product> findProducts(Long categoryId, ProductSortType sortType, int page, int size) {
-        // 1. 활성화되고 삭제되지 않은 상품만 필터링
+        // 1. 활성화되고 삭제되지 않은 상품중 categoryId와 맞는것만 필터링
         var stream = productMap.values().stream()
                 .filter(Product::isActive)
-                .filter(p -> p.getDeletedAt() == null);
-
-        // 2. 카테고리 필터링 (카테고리 ID가 있는 경우)
-        if (categoryId != null) {
-            stream = stream.filter(p -> categoryId.equals(p.getCategoryId()));
-        }
+                .filter(product -> product.getDeletedAt() == null)
+                .filter(product -> categoryId == null || categoryId.equals(product.getCategoryId()));
 
         // 3. 정렬
         Comparator<Product> comparator = getComparator(sortType);
@@ -116,17 +144,17 @@ public class ProductMemoryRepository implements ProductRepository {
         return stream
                 .skip((long) page * size)
                 .limit(size)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public long countActiveProducts(Long categoryId) {
         var stream = productMap.values().stream()
                 .filter(Product::isActive)
-                .filter(p -> p.getDeletedAt() == null);
+                .filter(product -> product.getDeletedAt() == null);
 
         if (categoryId != null) {
-            stream = stream.filter(p -> categoryId.equals(p.getCategoryId()));
+            stream = stream.filter(product -> categoryId.equals(product.getCategoryId()));
         }
 
         return stream.count();

@@ -5,7 +5,6 @@ import io.hhplus.ECommerce.ECommerce_project.order.domain.enums.OrderStatus;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -20,12 +19,11 @@ public class OrdersEntityTest {
         Long couponId = 10L;
         BigDecimal discountAmount = BigDecimal.valueOf(2000);
         BigDecimal pointAmount = BigDecimal.valueOf(500);
-        List<Long> usedPointIds = List.of(1L, 2L);
 
         // when
         Orders order = Orders.createOrder(
                 userId, totalAmount, shippingFee, couponId,
-                discountAmount, pointAmount, usedPointIds
+                discountAmount, pointAmount
         );
 
         // then
@@ -37,7 +35,6 @@ public class OrdersEntityTest {
         assertThat(order.getFinalAmount()).isEqualTo(totalAmount.add(shippingFee).subtract(discountAmount).subtract(pointAmount));
         assertThat(order.getShippingFee()).isEqualTo(shippingFee);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);  // 주문 생성 시 PENDING 상태
-        assertThat(order.getUsedPointIds()).containsExactlyElementsOf(usedPointIds);
         assertThat(order.getCreatedAt()).isNotNull();
         assertThat(order.getUpdatedAt()).isNotNull();
     }
@@ -56,7 +53,7 @@ public class OrdersEntityTest {
         // then
         assertThatThrownBy(() -> Orders.createOrder(
                 userId, totalAmount, shippingFee, null,
-                discountAmount, pointAmount, null
+                discountAmount, pointAmount
         )).isInstanceOf(OrderException.class)
                 .hasMessageContaining("최종 결제 금액은 0 이상이어야 합니다.");
     }
@@ -64,7 +61,7 @@ public class OrdersEntityTest {
     @Test
     void paid_changesStatusAndSetsPaidAt() {
         Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(0),
-                null, null, null, null);
+                null, null, null);
 
         order.paid();
 
@@ -76,7 +73,7 @@ public class OrdersEntityTest {
     @Test
     void paid_invalidStatus_throwsException() {
         Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(0),
-                null, null, null, null);
+                null, null, null);
         order.cancel(); // PENDING -> CANCELED 상태 변경
 
         assertThatThrownBy(order::paid)
@@ -87,7 +84,7 @@ public class OrdersEntityTest {
     @Test
     void cancel_pendingOrder_changesStatus() {
         Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(0),
-                null, null, null, null);
+                null, null, null);
 
         // PENDING 상태에서 취소
         order.cancel();
@@ -100,7 +97,7 @@ public class OrdersEntityTest {
     @Test
     void cancelAfterPaid_paidOrder_changesStatus() {
         Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(0),
-                null, null, null, null);
+                null, null, null);
         order.paid();
 
         order.cancelAfterPaid();
@@ -113,7 +110,7 @@ public class OrdersEntityTest {
     @Test
     void complete_paidOrder_changesStatus() {
         Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(0),
-                null, null, null, null);
+                null, null, null);
         order.paid();
 
         order.complete();
@@ -125,7 +122,7 @@ public class OrdersEntityTest {
     @Test
     void paymentFailed_completedOrder_changesStatus() {
         Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(0),
-                null, null, null, null);
+                null, null, null);
 
         order.paymentFailed();
 
@@ -136,11 +133,11 @@ public class OrdersEntityTest {
     @Test
     void isFreeShipping_returnsCorrectly() {
         Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.ZERO,
-                null, null, null, null);
+                null, null, null);
         assertThat(order.isFreeShipping()).isTrue();
 
         Orders order2 = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(500),
-                null, null, null, null);
+                null, null, null);
         assertThat(order2.isFreeShipping()).isFalse();
     }
 }

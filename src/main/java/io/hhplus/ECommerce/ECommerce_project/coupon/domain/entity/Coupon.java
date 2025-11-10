@@ -26,7 +26,6 @@ public class Coupon {
     private BigDecimal minOrderAmount;
     private int totalQuantity;              // 전체 수량
     private int issuedQuantity;             // 발급된 양
-    private int usageCount;                 // 사용된 양
     private int perUserLimit;               // 인당 사용가능 양
     private LocalDateTime startDate;
     private LocalDateTime endDate;
@@ -98,7 +97,6 @@ public class Coupon {
             minOrderAmount,
             totalQuantity,
             0,                      // issuedQuantity (초기값 0)
-            0,                      // usageCount (초기값 0)
             perUserLimit,
             startDate,
             endDate,
@@ -306,36 +304,13 @@ public class Coupon {
 
     /**
      * 쿠폰 발급 시 수량 증가
+     * issuedQuantity는 한번 증가하면 절대 감소하지 않음 (영구적 기록)
      */
     public void increaseIssuedQuantity() {
-        if (this.issuedQuantity >= this.totalQuantity) {
+        if (!hasRemainingQuantity()) {
             throw new CouponException(ErrorCode.COUPON_ALL_ISSUED);
         }
         this.issuedQuantity++;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    /**
-     * 쿠폰 사용 시 사용량 증가
-     * totalQuantity 제한도 함께 검증
-     */
-    public void increaseUsageCount() {
-        if (this.usageCount >= this.totalQuantity) {
-            throw new CouponException(ErrorCode.COUPON_USAGE_LIMIT_EXCEEDED,
-                "쿠폰 사용 가능 횟수를 초과했습니다. 사용 가능 횟수: " + this.totalQuantity + ", 현재 사용 횟수: " + this.usageCount);
-        }
-        this.usageCount++;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    /**
-     * 쿠폰 사용 취소 시 사용량 감소 (보상 트랜잭션용)
-     */
-    public void decreaseUsageCount() {
-        if (this.usageCount <= 0) {
-            throw new CouponException(ErrorCode.COUPON_CANNOT_DECREASE_USAGE);
-        }
-        this.usageCount--;
         this.updatedAt = LocalDateTime.now();
     }
 

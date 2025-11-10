@@ -10,8 +10,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)  // JPA를 위한 기본 생성자
@@ -35,7 +33,6 @@ public class Orders {
     private BigDecimal shippingFee;
     private OrderStatus status;
     private BigDecimal pointAmount;
-    private List<Long> usedPointIds;  // 사용한 포인트 ID 리스트 (취소 시 복구용)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime paidAt;
@@ -52,8 +49,7 @@ public class Orders {
         BigDecimal shippingFee,
         Long couponId,
         BigDecimal discountAmount,
-        BigDecimal pointAmount,
-        List<Long> usedPointIds
+        BigDecimal pointAmount
     ) {
         validateUserId(userId);
         validateAmount(totalAmount, "총 상품 금액");
@@ -90,7 +86,6 @@ public class Orders {
             shippingFee,
             OrderStatus.PENDING,  // 결제 대기 상태 (PENDING → PAID → COMPLETED)
             point,
-            usedPointIds != null ? new ArrayList<>(usedPointIds) : new ArrayList<>(),  // 방어적 복사
             now,   // createdAt
             now,   // updatedAt
             null,  // paidAt

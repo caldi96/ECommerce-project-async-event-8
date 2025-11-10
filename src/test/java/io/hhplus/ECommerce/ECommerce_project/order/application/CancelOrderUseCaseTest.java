@@ -63,7 +63,7 @@ class CancelOrderUseCaseTest {
     @Test
     void execute_cancelPendingOrder_success() {
         // given
-        Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(100), null, null, null, null);
+        Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(100), null, null, null);
         CancelOrderCommand command = new CancelOrderCommand(1L, 1L);
 
         Product product = mock(Product.class);
@@ -71,22 +71,19 @@ class CancelOrderUseCaseTest {
         when(orderItemRepository.findByOrderId(1L)).thenReturn(List.of(
                 OrderItem.createOrderItem(1L, 10L, "Product A", 1, BigDecimal.valueOf(1000))
         ));
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.restoreStockWithLock(10L, 1)).thenReturn(product);
 
         // when
         cancelOrderUseCase.execute(command);
 
         // then
         assertThat(order.isCanceled()).isTrue();
-        verify(product).increaseStock(1);
-        verify(product).decreaseSoldCount(1);
-        verify(productRepository).save(product);
         verify(orderRepository).save(order);
     }
 
     @Test
     void execute_cancelPaidOrder_success() {
-        Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(100), null, null, null, null);
+        Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(100), null, null, null);
         order.paid();
         CancelOrderCommand command = new CancelOrderCommand(1L, 1L);
 
@@ -95,14 +92,11 @@ class CancelOrderUseCaseTest {
         when(orderItemRepository.findByOrderId(1L)).thenReturn(List.of(
                 OrderItem.createOrderItem(1L, 10L, "Product A", 1, BigDecimal.valueOf(1000))
         ));
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.restoreStockWithLock(10L, 1)).thenReturn(product);
 
         cancelOrderUseCase.execute(command);
 
         assertThat(order.isCanceled()).isTrue();
-        verify(product).increaseStock(1);
-        verify(product).decreaseSoldCount(1);
-        verify(productRepository).save(product);
         verify(orderRepository).save(order);
     }
 
@@ -116,7 +110,7 @@ class CancelOrderUseCaseTest {
 
     @Test
     void execute_wrongUser_throwsException() {
-        Orders order = Orders.createOrder(2L, BigDecimal.valueOf(1000), BigDecimal.valueOf(100), null, null, null, null);
+        Orders order = Orders.createOrder(2L, BigDecimal.valueOf(1000), BigDecimal.valueOf(100), null, null, null);
         CancelOrderCommand command = new CancelOrderCommand(1L, 1L);
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
@@ -126,7 +120,7 @@ class CancelOrderUseCaseTest {
     @Test
     void execute_withCouponAndPoints_success() {
         // given
-        Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(100), 5L, BigDecimal.valueOf(100), BigDecimal.valueOf(50), null);
+        Orders order = Orders.createOrder(1L, BigDecimal.valueOf(1000), BigDecimal.valueOf(100), 5L, BigDecimal.valueOf(100), BigDecimal.valueOf(50));
         CancelOrderCommand command = new CancelOrderCommand(1L, 1L);
 
         Product product = mock(Product.class);
@@ -140,7 +134,7 @@ class CancelOrderUseCaseTest {
         when(orderItemRepository.findByOrderId(1L)).thenReturn(List.of(
                 OrderItem.createOrderItem(1L, 10L, "Product A", 1, BigDecimal.valueOf(1000))
         ));
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.restoreStockWithLock(10L, 1)).thenReturn(product);
         when(userCouponRepository.findByUserIdAndCouponId(1L, 5L)).thenReturn(Optional.of(userCoupon));
         when(couponRepository.findById(5L)).thenReturn(Optional.of(coupon));
         when(pointUsageHistoryRepository.findByOrderIdAndCanceledAtIsNull(1L)).thenReturn(List.of(pointHistory));
@@ -156,8 +150,6 @@ class CancelOrderUseCaseTest {
         // then
         verify(userCoupon).cancelUse(anyInt());
         verify(userCouponRepository).save(userCoupon);
-        verify(coupon).decreaseUsageCount();
-        verify(couponRepository).save(coupon);
         verify(point).restoreUsedAmount(BigDecimal.valueOf(50));
         verify(pointRepository).save(point);
         verify(pointHistory).cancel();

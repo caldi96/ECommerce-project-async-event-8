@@ -81,19 +81,12 @@ public class CreateOrderFromProductUseCase {
             throw new OrderException(ErrorCode.PRODUCT_QUANTITY_INVALID);
         }
 
-        // 3. 상품 조회 및 검증 (비관적 락 적용)
-        Product product = productRepository.findByIdWithLock(command.productId())
-                .orElseThrow(() -> new ProductException(ErrorCode.PRODUCT_NOT_FOUND));
-
-        // 상품 주문 가능 여부 확인 (활성화, 재고)
-        if (!product.canOrder(command.quantity())) {
-            throw new OrderException(ErrorCode.ORDER_PRODUCT_CANNOT_BE_ORDERED);
+        // 3. 상품 조회 및 재고 차감 (비관적 락 적용 - 원자적 처리)
+        // decreaseStockWithLock은 락 안에서 조회, 검증, 재고 차감, 판매량 증가를 원자적으로 수행
+        Product product = productRepository.decreaseStockWithLock(command.productId(), command.quantity());
+        if (product == null) {
+            throw new ProductException(ErrorCode.PRODUCT_NOT_FOUND);
         }
-
-        // 4. 재고 차감 및 판매량 증가
-        product.decreaseStock(command.quantity());
-        product.increaseSoldCount(command.quantity());
-        productRepository.save(product);
 
         // 롤백을 위한 정보 저장
         rollbackContext.productQuantityMap.put(command.productId(), command.quantity());
@@ -109,30 +102,27 @@ public class CreateOrderFromProductUseCase {
         BigDecimal discountAmount = BigDecimal.ZERO;
 
         if (command.couponId() != null) {
-            // 7-1. 사용자 쿠폰 조회
+            // 7-1. 사용자 쿠폰 조회 (미리 발급받아야 함 - 선착순 쿠폰 발급)
             UserCoupon userCoupon = userCouponRepository
                     .findByUserIdAndCouponId(command.userId(), command.couponId())
                     .orElseThrow(() -> new CouponException(ErrorCode.USER_COUPON_NOT_FOUND));
 
-            // 7-2. 쿠폰 검증 및 사용 횟수 증가 (원자적 연산으로 동시성 문제 해결)
-            // 락 안에서 조회, 유효성 검증, 사용 횟수 증가를 모두 수행하여 Race Condition 방지
-            Coupon coupon = couponRepository.validateAndIncreaseUsageWithLock(command.couponId());
-            if (coupon == null) {
-                throw new CouponException(ErrorCode.COUPON_NOT_FOUND);
-            }
+            // 7-2. 쿠폰 조회 및 검증
+            Coupon coupon = couponRepository.findById(command.couponId())
+                    .orElseThrow(() -> new CouponException(ErrorCode.COUPON_NOT_FOUND));
 
-            // 7-5. 사용자 쿠폰 사용 가능 여부
+            // 7-3. 쿠폰 유효성 검증 (활성화, 기간 등)
+            coupon.validateAvailability();
+
+            // 7-4. 사용자 쿠폰 사용 가능 여부 확인
             userCoupon.validateCanUse(coupon.getPerUserLimit());
 
-            // 7-6. 할인 금액 계산
+            // 7-5. 할인 금액 계산
             discountAmount = coupon.calculateDiscountAmount(totalAmount);
 
-            // 7-7. 쿠폰 사용 처리
+            // 7-6. 쿠폰 사용 처리 (usedCount 증가)
             userCoupon.use(coupon.getPerUserLimit());
             userCouponRepository.save(userCoupon);
-
-            // 7-8. 쿠폰 저장
-            couponRepository.save(coupon);
 
             // 롤백을 위한 정보 저장
             rollbackContext.userCoupon = userCoupon;
@@ -179,18 +169,13 @@ public class CreateOrderFromProductUseCase {
         }
 
         // 9. Order 생성
-        List<Long> usedPointIds = pointsToUpdate.stream()
-                .map(Point::getId)
-                .toList();
-
         Orders order = Orders.createOrder(
                 command.userId(),
                 totalAmount,
                 shippingFee,
                 command.couponId(),
                 discountAmount,
-                pointAmount,
-                usedPointIds
+                pointAmount
         );
 
         Orders savedOrder = orderRepository.save(order);
@@ -281,9 +266,6 @@ public class CreateOrderFromProductUseCase {
             try {
                 rollbackContext.userCoupon.cancelUse(rollbackContext.coupon.getPerUserLimit());
                 userCouponRepository.save(rollbackContext.userCoupon);
-
-                rollbackContext.coupon.decreaseUsageCount();
-                couponRepository.save(rollbackContext.coupon);
             } catch (Exception e) {
                 System.err.println("쿠폰 롤백 실패: " + e.getMessage());
             }
@@ -291,16 +273,12 @@ public class CreateOrderFromProductUseCase {
 
         // 4. 상품 재고 복구
         for (Map.Entry<Long, Integer> entry : rollbackContext.productQuantityMap.entrySet()) {
-            try {
-                Long productId = entry.getKey();
-                Integer quantity = entry.getValue();
+            Long productId = entry.getKey();
+            Integer quantity = entry.getValue();
 
-                Product product = productRepository.findById(productId).orElse(null);
-                if (product != null) {
-                    product.increaseStock(quantity);
-                    product.decreaseSoldCount(quantity);
-                    productRepository.save(product);
-                }
+            try {
+                // ProductMemoryRepository에서 락 안에서 재고 증가 + 판매량 감소 원자 처리
+                productRepository.restoreStockWithLock(productId, quantity);
             } catch (Exception e) {
                 System.err.println("상품 재고 롤백 실패: " + e.getMessage());
             }

@@ -59,14 +59,17 @@ public class CancelOrderUseCase {
         // 4. 주문 아이템 조회
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(command.orderId());
 
-        // 5. 상품 재고 복구
+        // 5. 상품 재고 복구 (동시성 제어 적용)
         for (OrderItem orderItem : orderItems) {
-            Product product = productRepository.findById(orderItem.getProductId())
-                    .orElseThrow(() -> new ProductException(ErrorCode.PRODUCT_NOT_FOUND));
+            // 락을 사용하여 재고 복구 (동시 취소 시 정확성 보장)
+            Product product = productRepository.restoreStockWithLock(
+                    orderItem.getProductId(),
+                    orderItem.getQuantity()
+            );
 
-            product.increaseStock(orderItem.getQuantity());
-            product.decreaseSoldCount(orderItem.getQuantity());
-            productRepository.save(product);
+            if (product == null) {
+                throw new ProductException(ErrorCode.PRODUCT_NOT_FOUND);
+            }
         }
 
         // 6. 쿠폰 복구
@@ -80,13 +83,10 @@ public class CancelOrderUseCase {
             Coupon coupon = couponRepository.findById(order.getCouponId())
                     .orElseThrow(() -> new CouponException(ErrorCode.COUPON_NOT_FOUND));
 
-            // 6-3. 쿠폰 사용 취소 처리
+            // 6-3. 쿠폰 사용 취소 처리 (usedCount 감소)
+            // issuedQuantity는 복구하지 않음 (한번 발급되면 영구적)
             userCoupon.cancelUse(coupon.getPerUserLimit());
             userCouponRepository.save(userCoupon);
-
-            // 6-4. 쿠폰 사용 횟수 감소
-            coupon.decreaseUsageCount();
-            couponRepository.save(coupon);
         }
 
         // 7. 포인트 복구 (PointUsageHistory 활용)

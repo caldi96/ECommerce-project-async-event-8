@@ -19,6 +19,15 @@ public interface ProductRepository {
     Optional<Product> findByIdWithLock(Long id);
 
     /**
+     * 재고 차감 (비관적 락 적용)
+     * 락 안에서 상품 조회, 검증, 재고 차감, 판매량 증가를 원자적으로 수행
+     * @param productId 상품 ID
+     * @param quantity 차감할 수량
+     * @return 업데이트된 상품
+     */
+    Product decreaseStockWithLock(Long productId, int quantity);
+
+    /**
      * 재고 복구 (비관적 락 적용)
      * 락 안에서 재고 증가 및 판매량 감소를 원자적으로 수행
      * @param productId 상품 ID

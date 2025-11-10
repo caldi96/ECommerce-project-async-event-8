@@ -34,12 +34,10 @@ public class OrderMemoryRepository implements OrderRepository {
 
         // 주문 ID가 있는 경우 락을 걸고 저장 (동시성 제어)
         if (orders.getId() != null) {
-            Object lock = lockMap.computeIfAbsent(orders.getId(), k -> new Object());
+            Object lock = getLock(orders.getId());
             synchronized (lock) {
                 orderMap.put(orders.getId(), orders);
             }
-        } else {
-            orderMap.put(orders.getId(), orders);
         }
 
         return orders;
