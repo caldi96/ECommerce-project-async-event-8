@@ -78,6 +78,8 @@ Table payments {
     indexes {
         (order_id)
         (payment_status)
+        (created_at)
+        (order_id, payment_status)
     }
 }
 
@@ -89,7 +91,7 @@ Table order_items {
     quantity int [not null]
     unit_price decimal(10,2) [not null]
     subtotal decimal(10,2) [not null] // quantity * unit_price
-    status varchar [not null] // 주문완료, 주문취소, 반품, 환불, 구매확정
+    status varchar [not null] // ORDER_PENDING(주문대기), ORDER_COMPLETED(주문완료), ORDER_CANCELED(주문취소), ORDER_RETURNED(반품), ORDER_REFUNDED(환불), PURCHASE_CONFIRMED(구매확정)
     confirmed_at timestamp
     cancelled_at timestamp
     returned_at timestamp
@@ -119,12 +121,11 @@ Table points {
     user_id bigint [ref: > users.id, not null]
     amount decimal(10,2) [not null]
     used_amount decimal(10,2) [not null, default: 0]
-    point_type varchar [not null]  // EARNED, USED, EXPIRED, REFUNDED
+    point_type varchar [not null]  // CHARGE, REFUNDED
     description varchar  // 적립/사용 사유
     expired_at timestamp  // 포인트 만료일
     created_at timestamp [not null, default: `now()`]
     updated_at timestamp [not null, default: `now()`]
-    expired_at timestamp
     used_at timestamp
     deleted_at timestamp
     is_expired boolean
@@ -132,6 +133,8 @@ Table points {
     indexes {
         (user_id)
         (created_at)
+        (user_id, expired_at) // 만료 포인트 조회용
+        (user_id, point_type, created_at)
     }
 }
 
@@ -142,6 +145,10 @@ Table pointUsageHistories {
     used_amount decimal(10,2) [not null] // 사용한 포인트 금액
     created_at timestamp [not null, default: `now()`]
     canceled_at timestamp
+    indexes {
+        (order_id) // 주문별 포인트 사용 조회용
+        (point_id) // 
+    }
 }
 
 Table coupons {
