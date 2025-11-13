@@ -19,8 +19,8 @@ public record UserCouponResponse(
     public static UserCouponResponse from(UserCoupon userCoupon) {
         return new UserCouponResponse(
                 userCoupon.getId(),
-                userCoupon.getCouponId(),
-                userCoupon.getUserId(),
+                userCoupon.getCoupon().getId(),
+                userCoupon.getUser().getId(),
                 userCoupon.getStatus(),
                 userCoupon.getUsedCount(),
                 userCoupon.getUsedAt(),

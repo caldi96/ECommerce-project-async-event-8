@@ -20,8 +20,8 @@ public record GetCartResponse(
     public static GetCartResponse from(Cart cart, Product product) {
         return new GetCartResponse(
                 cart.getId(),
-                cart.getUserId(),
-                cart.getProductId(),
+                cart.getUser().getId(),
+                cart.getProduct().getId(),
                 product.getName(),
                 product.getPrice(),
                 cart.getQuantity(),

@@ -6,6 +6,7 @@ import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.UserCoupon;
 import io.hhplus.ECommerce.ECommerce_project.coupon.infrastructure.CouponRepository;
 import io.hhplus.ECommerce.ECommerce_project.coupon.infrastructure.UserCouponRepository;
 import io.hhplus.ECommerce.ECommerce_project.order.application.command.CreateOrderFromProductCommand;
+import io.hhplus.ECommerce.ECommerce_project.order.application.dto.ValidatedOrderFromProductData;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.constants.ShippingPolicy;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.entity.OrderItem;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.entity.Orders;
@@ -260,10 +261,3 @@ public class CreateOrderFromProductUseCase {
         return CreateOrderResponse.from(savedOrder, orderItems);
     }
 }
-
-// 검증된 데이터를 전달하기 위한 내부 DTO
-record ValidatedOrderFromProductData(
-        BigDecimal totalAmount,
-        BigDecimal shippingFee,
-        BigDecimal discountAmount
-) {}

@@ -16,8 +16,8 @@ public record CreateCartResponse(
     public static CreateCartResponse from(Cart cart) {
         return new CreateCartResponse(
                 cart.getId(),
-                cart.getUserId(),
-                cart.getProductId(),
+                cart.getUser().getId(),
+                cart.getProduct().getId(),
                 cart.getQuantity(),
                 cart.getCreatedAt()
         );

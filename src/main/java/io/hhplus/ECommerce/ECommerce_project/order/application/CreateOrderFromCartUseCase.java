@@ -8,7 +8,7 @@ import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.UserCoupon;
 import io.hhplus.ECommerce.ECommerce_project.coupon.infrastructure.CouponRepository;
 import io.hhplus.ECommerce.ECommerce_project.coupon.infrastructure.UserCouponRepository;
 import io.hhplus.ECommerce.ECommerce_project.order.application.command.CreateOrderFromCartCommand;
-import io.hhplus.ECommerce.ECommerce_project.order.application.command.CreateOrderFromProductCommand;
+import io.hhplus.ECommerce.ECommerce_project.order.application.dto.ValidatedOrderFromCartData;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.constants.ShippingPolicy;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.entity.OrderItem;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.entity.Orders;
@@ -26,7 +26,6 @@ import io.hhplus.ECommerce.ECommerce_project.user.infrastructure.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -48,9 +47,9 @@ public class CreateOrderFromCartUseCase {
     private final PointRepository pointRepository;
     private final PointUsageHistoryRepository pointUsageHistoryRepository;
 
+    @Transactional
     public CreateOrderResponse execute(CreateOrderFromCartCommand command) {
 
-        /*
         // 1. 사용자 확인
         User user = userRepository.findByIdWithLock(command.userId())
                 .orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
@@ -249,16 +248,17 @@ public class CreateOrderFromCartUseCase {
         // 13. 주문 등록 완료 응답 반환 (결제는 별도 API로 처리)
         return CreateOrderResponse.from(savedOrder, orderItems);
 
-         */
-
+        /*
         // 1. 검증 및 사전 계산 (트랜잭션 밖)
         validatedOrderFromCartData validatedOrderFromCartData = validateAndCalculate((command));
 
         // 2. 핵심 쓰기 작업만 트랜잭션 처리 (트랜잭션 안)
         return executeCore(command, validatedOrderFromCartData);
+
+         */
     }
 
-    private validatedOrderFromCartData validateAndCalculate(CreateOrderFromCartCommand command) {
+    private ValidatedOrderFromCartData validateAndCalculate(CreateOrderFromCartCommand command) {
         // 1. 사용자 확인
         User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
@@ -364,7 +364,7 @@ public class CreateOrderFromCartUseCase {
             }
         }
 
-        return new validatedOrderFromCartData(
+        return new ValidatedOrderFromCartData(
                 cartList,
                 sortedEntries,
                 productMap,
@@ -377,7 +377,7 @@ public class CreateOrderFromCartUseCase {
     @Transactional
     private CreateOrderResponse executeCore(
             CreateOrderFromCartCommand command,
-            validatedOrderFromCartData validatedOrderFromCartData
+            ValidatedOrderFromCartData validatedOrderFromCartData
     ) {
 
         // 1. 사용자 확인 (락 걸기)
@@ -543,13 +543,3 @@ public class CreateOrderFromCartUseCase {
         return totalAmount;
     }
 }
-
-
-record validatedOrderFromCartData(
-        List<Cart> cartList,
-        List<Map.Entry<Long, Integer>> sortedEntries,
-        Map<Long, Product> productMap,
-        BigDecimal totalAmount,
-        BigDecimal shippingFee,
-        BigDecimal discountAmount
-) {}

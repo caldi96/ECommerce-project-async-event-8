@@ -21,7 +21,7 @@ public record CreatePaymentResponse(
     public static CreatePaymentResponse from(Payment payment, Orders order) {
         return new CreatePaymentResponse(
             payment.getId(),
-            payment.getOrderId(),
+            payment.getOrder().getId(),
             payment.getAmount(),
             payment.getPaymentMethod(),
             payment.getPaymentStatus(),
