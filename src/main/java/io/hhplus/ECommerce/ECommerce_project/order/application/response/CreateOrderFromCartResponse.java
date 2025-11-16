@@ -30,7 +30,7 @@ public record CreateOrderFromCartResponse(
     public static CreateOrderFromCartResponse from(Orders order, Payment payment, List<OrderItem> orderItems) {
         return new CreateOrderFromCartResponse(
             order.getId(),
-            order.getUserId(),
+            order.getUser().getId(),
             order.getTotalAmount(),
             order.getShippingFee(),
             order.getDiscountAmount(),
@@ -59,7 +59,7 @@ public record CreateOrderFromCartResponse(
         public static OrderItemResponse from(OrderItem orderItem) {
             return new OrderItemResponse(
                 orderItem.getId(),
-                orderItem.getProductId(),
+                orderItem.getProduct().getId(),
                 orderItem.getProductName(),
                 orderItem.getQuantity(),
                 orderItem.getUnitPrice(),

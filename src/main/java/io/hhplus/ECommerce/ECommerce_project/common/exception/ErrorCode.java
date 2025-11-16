@@ -18,6 +18,7 @@ public enum ErrorCode {
     // ===== User =====
     USER_NOT_FOUND("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     USER_ID_REQUIRED("사용자 ID는 필수입니다.", HttpStatus.BAD_REQUEST),
+    USER_POINT_RESTORE_FAILED("유저 포인트 복구에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
     // ===== Product =====
     PRODUCT_NOT_FOUND("상품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
@@ -42,6 +43,10 @@ public enum ErrorCode {
     PRODUCT_DECREASE_SOLD_COUNT_INVALID("감소할 판매량은 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     PRODUCT_INCREASE_SOLD_COUNT_INVALID("증가할 판매량은 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     PRODUCT_ALREADY_DELETED("이미 삭제된 상품입니다.", HttpStatus.CONFLICT),
+    PRODUCT_NOT_ACTIVE("비활성 상태의 상품입니다.", HttpStatus.CONFLICT),
+    PRODUCT_MIN_ORDER_QUANTITY_NOT_MET("최소 주문 수량을 만족하지 않습니다.", HttpStatus.CONFLICT),
+    PRODUCT_MAX_ORDER_QUANTITY_EXCEEDED("최대 주문 수량을 초과했습니다.", HttpStatus.CONFLICT),
+    PRODUCT_RESTORE_FAILED("상품 재고 복구에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
     // ===== Point =====
     POINT_NOT_FOUND("포인트를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
@@ -51,12 +56,14 @@ public enum ErrorCode {
     POINT_ORDER_ID_REQUIRED("주문 ID는 필수입니다.", HttpStatus.BAD_REQUEST),
     POINT_CANNOT_EXPIRE_USED_POINT("사용된 포인트는 만료 처리할 수 없습니다.", HttpStatus.CONFLICT),
     POINT_ALREADY_EXPIRED("이미 만료된 포인트입니다.", HttpStatus.CONFLICT),
+    POINT_ALREADY_DELETED("이미 삭제된 포인트입니다.", HttpStatus.CONFLICT),
     POINT_NO_EXPIRATION_DATE("만료일이 없는 포인트입니다.", HttpStatus.CONFLICT),
     POINT_ONLY_CHARGE_OR_REFUND_CAN_BE_USED("충전 또는 환불 포인트만 사용 가능합니다.", HttpStatus.CONFLICT),
     POINT_ALREADY_USED("이미 사용된 포인트입니다.", HttpStatus.CONFLICT),
     POINT_EXPIRED_CANNOT_USE("만료된 포인트는 사용할 수 없습니다.", HttpStatus.CONFLICT),
     POINT_EXPIRATION_DATE_PASSED("유효기간이 지난 포인트입니다.", HttpStatus.CONFLICT),
     POINT_INSUFFICIENT_POINT("포인트가 부족합니다.", HttpStatus.BAD_REQUEST),
+    POINT_RESTORE_FAILED("포인트 복구에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
     // ===== Cart =====
     CART_NOT_FOUND("장바구니 아이템을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
@@ -109,6 +116,7 @@ public enum ErrorCode {
     PAYMENT_FAILURE_REASON_REQUIRED("실패 사유는 필수입니다.", HttpStatus.BAD_REQUEST),
     PAYMENT_ONLY_PAYMENT_TYPE_CAN_REFUND("일반 결제만 환불 가능합니다.", HttpStatus.CONFLICT),
     PAYMENT_ONLY_COMPLETED_CAN_REFUND("완료된 결제만 환불 가능합니다.", HttpStatus.CONFLICT),
+    PAYMENT_COMPENSATION_TRANSACTION_FAILED("결제 실패에 대한 보상 트랜잭션이 실패하였습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
     // ===== Coupon =====
     COUPON_NOT_FOUND("쿠폰을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
@@ -125,8 +133,9 @@ public enum ErrorCode {
     COUPON_PER_USER_LIMIT_INVALID("사용자당 제한은 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     COUPON_DATE_REQUIRED("쿠폰 시작일과 종료일은 필수입니다.", HttpStatus.BAD_REQUEST),
     COUPON_INVALID_DATE_RANGE("시작일은 종료일보다 이전이어야 합니다.", HttpStatus.BAD_REQUEST),
-    COUPON_ALL_ISSUED("모든 쿠폰이 이미 발급되었습니다.", HttpStatus.CONFLICT),
-    COUPON_ALL_USED("모든 쿠폰이 이미 사용되었습니다.", HttpStatus.CONFLICT),
+    COUPON_ALL_ISSUED("모든 쿠폰이 모두 발급되었습니다.", HttpStatus.CONFLICT),
+    COUPON_ALREADY_ISSUED("쿠폰이 이미 발급되었습니다.", HttpStatus.CONFLICT),
+    COUPON_ALL_USED("쿠폰이 모두 소진되었습니다.", HttpStatus.CONFLICT),
     COUPON_NOT_AVAILABLE("사용할 수 없는 쿠폰입니다.", HttpStatus.CONFLICT),
     COUPON_EXPIRED("만료된 쿠폰입니다.", HttpStatus.CONFLICT),
     COUPON_NOT_STARTED("쿠폰 사용 기간이 아닙니다.", HttpStatus.CONFLICT),

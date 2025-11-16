@@ -3,7 +3,7 @@ package io.hhplus.ECommerce.ECommerce_project.product.application;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ProductException;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
-import io.hhplus.ECommerce.ECommerce_project.product.domain.repository.ProductRepository;
+import io.hhplus.ECommerce.ECommerce_project.product.infrastructure.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,13 +17,10 @@ public class DeleteProductUseCase {
     @Transactional
     public void execute(Long productId) {
         // 1. 상품 조회
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByIdWithLock(productId)
                 .orElseThrow(() -> new ProductException(ErrorCode.PRODUCT_NOT_FOUND));
 
         // 2. 논리적 삭제 (deletedAt 설정 및 비활성화)
         product.delete();
-
-        // 3. 변경사항 저장
-        productRepository.save(product);
     }
 }

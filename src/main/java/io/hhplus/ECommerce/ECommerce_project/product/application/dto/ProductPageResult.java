@@ -12,16 +12,16 @@ public class ProductPageResult {
     private final int size;
     private final long totalElements;
     private final int totalPages;
-    private final boolean first;
-    private final boolean last;
+    private final boolean isFirst;
+    private final boolean isLast;
 
-    public ProductPageResult(List<Product> products, int page, int size, long totalElements) {
+    public ProductPageResult(List<Product> products, int page, int size, long totalElements, int totalPages, boolean isFirst, boolean isLast) {
         this.products = products;
         this.page = page;
         this.size = size;
         this.totalElements = totalElements;
-        this.totalPages = (int) Math.ceil((double) totalElements / size);
-        this.first = page == 0;
-        this.last = page >= totalPages - 1;
+        this.totalPages = totalPages;
+        this.isFirst = isFirst;
+        this.isLast = isLast;
     }
 }

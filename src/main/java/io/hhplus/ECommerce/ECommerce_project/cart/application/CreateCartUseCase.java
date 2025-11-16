@@ -2,15 +2,15 @@ package io.hhplus.ECommerce.ECommerce_project.cart.application;
 
 import io.hhplus.ECommerce.ECommerce_project.cart.application.command.CreateCartCommand;
 import io.hhplus.ECommerce.ECommerce_project.cart.domain.entity.Cart;
-import io.hhplus.ECommerce.ECommerce_project.cart.domain.repository.CartRepository;
+import io.hhplus.ECommerce.ECommerce_project.cart.infrastructure.CartRepository;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.CartException;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ProductException;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.UserException;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
-import io.hhplus.ECommerce.ECommerce_project.product.domain.repository.ProductRepository;
+import io.hhplus.ECommerce.ECommerce_project.product.infrastructure.ProductRepository;
 import io.hhplus.ECommerce.ECommerce_project.user.domain.entity.User;
-import io.hhplus.ECommerce.ECommerce_project.user.domain.repository.UserRepository;
+import io.hhplus.ECommerce.ECommerce_project.user.infrastructure.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +32,7 @@ public class CreateCartUseCase {
                 .orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
 
         // 2. 상품 존재 여부 확인
-        Product product = productRepository.findById(command.productId())
+        Product product = productRepository.findByIdActive(command.productId())
                 .orElseThrow(() -> new ProductException(ErrorCode.PRODUCT_NOT_FOUND));
 
         // 3. 상품 주문 가능 여부 확인
@@ -41,7 +41,7 @@ public class CreateCartUseCase {
         }
 
         // 4. 이미 해당 사용자의 장바구니에 같은 상품 존재 여부 확인
-        Optional<Cart> existingCart = cartRepository.findByUserIdAndProductId(command.userId(), command.productId());
+        Optional<Cart> existingCart = cartRepository.findByUser_IdAndProduct_Id(command.userId(), command.productId());
 
         // 5-1. 이미 같은 상품이 존재하면 수량만 증가
         if (existingCart.isPresent()) {
@@ -57,13 +57,13 @@ public class CreateCartUseCase {
             // 기존 수량에 추가
             cart.increaseQuantity(command.quantity());
             // 저장 후 반환
-            return cartRepository.save(cart);
+            return cart;
         }
 
         // 5-2. 도메인 생성
         Cart cart = Cart.createCart(
-                command.userId(),
-                command.productId(),
+                user,
+                product,
                 command.quantity()
         );
         // 저장 후 반환

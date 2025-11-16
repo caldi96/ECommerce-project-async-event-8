@@ -3,7 +3,7 @@ package io.hhplus.ECommerce.ECommerce_project.coupon.application;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.CouponException;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.Coupon;
-import io.hhplus.ECommerce.ECommerce_project.coupon.domain.repository.CouponRepository;
+import io.hhplus.ECommerce.ECommerce_project.coupon.infrastructure.CouponRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +24,6 @@ public class DeactivateCouponUseCase {
         coupon.deactivate();
 
         // 3.저장 후 반환
-        return couponRepository.save(coupon);
+        return coupon;
     }
 }

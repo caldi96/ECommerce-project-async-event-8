@@ -1,7 +1,7 @@
 package io.hhplus.ECommerce.ECommerce_project.category.application;
 
 import io.hhplus.ECommerce.ECommerce_project.category.domain.entity.Category;
-import io.hhplus.ECommerce.ECommerce_project.category.domain.repository.CategoryRepository;
+import io.hhplus.ECommerce.ECommerce_project.category.infrastructure.CategoryRepository;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.CategoryException;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -16,11 +16,10 @@ public class DeleteCategoryUseCase {
 
     @Transactional
     public void execute(Long id) {
-        Category category = categoryRepository.findById(id)
+        Category category = categoryRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new CategoryException(ErrorCode.CATEGORY_NOT_FOUND));
 
         // 논리적 삭제
         category.delete();
-        categoryRepository.save(category);
     }
 }

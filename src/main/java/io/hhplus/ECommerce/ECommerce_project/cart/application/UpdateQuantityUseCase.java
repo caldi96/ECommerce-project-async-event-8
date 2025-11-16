@@ -2,13 +2,13 @@ package io.hhplus.ECommerce.ECommerce_project.cart.application;
 
 import io.hhplus.ECommerce.ECommerce_project.cart.application.command.UpdateQuantityCommand;
 import io.hhplus.ECommerce.ECommerce_project.cart.domain.entity.Cart;
-import io.hhplus.ECommerce.ECommerce_project.cart.domain.repository.CartRepository;
+import io.hhplus.ECommerce.ECommerce_project.cart.infrastructure.CartRepository;
 import io.hhplus.ECommerce.ECommerce_project.cart.presentation.response.UpdateQuantityResponse;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.CartException;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ProductException;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
-import io.hhplus.ECommerce.ECommerce_project.product.domain.repository.ProductRepository;
+import io.hhplus.ECommerce.ECommerce_project.product.infrastructure.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +32,7 @@ public class UpdateQuantityUseCase {
         }
 
         // 3. 상품 정보 조회
-        Product product = productRepository.findById(cart.getProductId())
+        Product product = productRepository.findByIdActive(cart.getProduct().getId())
                 .orElseThrow(() -> new ProductException(ErrorCode.PRODUCT_NOT_FOUND));
 
         // 4. 상품 주문 가능 여부 확인 (새로운 수량으로)
@@ -44,9 +44,9 @@ public class UpdateQuantityUseCase {
         cart.changeQuantity(command.quantity());
 
         // 6. 변경사항 저장
-        Cart updatedCart = cartRepository.save(cart);
+//        Cart updatedCart = cartRepository.save(cart);
 
         // 7. Response 생성 (총 가격 자동 계산됨)
-        return UpdateQuantityResponse.from(updatedCart, product);
+        return UpdateQuantityResponse.from(cart, product);
     }
 }

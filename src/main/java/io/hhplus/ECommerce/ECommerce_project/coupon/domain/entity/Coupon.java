@@ -1,38 +1,76 @@
 package io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity;
 
+import io.hhplus.ECommerce.ECommerce_project.common.entity.BaseEntity;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.CouponException;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.enums.DiscountType;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Entity
+@Table(name = "coupons")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-public class Coupon {
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public class Coupon extends BaseEntity {
 
-    private Long id;
+    @Column(nullable = false)
     private String name;
+
+    @Column(unique = true)
     private String code;
+
+    // ===== 할인 정보 =====
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "discount_type", nullable = false)
     private DiscountType discountType;
+
+    @Column(name = "discount_value", nullable = false, precision = 10, scale = 2)
     private BigDecimal discountValue;
+
+    @Column(name = "max_discount_amount", precision = 10, scale = 2)
     private BigDecimal maxDiscountAmount;
+
+    @Column(name = "min_order_amount", precision = 10, scale = 2)
     private BigDecimal minOrderAmount;
+
+    // ===== 수량 관리 =====
+
+    @Column(name = "total_quantity")
     private int totalQuantity;              // 전체 수량
+
+    @Column(name = "issued_quantity", nullable = false)
     private int issuedQuantity;             // 발급된 양
-    private int usageCount;                 // 사용된 양
+
+    @Column(name = "per_user_limit", nullable = false)
     private int perUserLimit;               // 인당 사용가능 양
+
+    // ===== 유효 기간 =====
+    @Column(name = "start_date")
     private LocalDateTime startDate;
+
+    @Column(name = "end_date")
     private LocalDateTime endDate;
+
+    // ===== 상태 관리 =====
+    @Column(name = "is_active", nullable = false)
     private boolean isActive;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
 
     // ===== 정적 팩토리 메서드 =====
 
@@ -86,10 +124,7 @@ public class Coupon {
                 "최대 할인 금액은 0보다 커야 합니다. 입력값: " + maxDiscountAmount);
         }
 
-        LocalDateTime now = LocalDateTime.now();
-
         return new Coupon(
-            null,                   // id는 저장 시 생성
             name,
             code,
             discountType,
@@ -98,13 +133,12 @@ public class Coupon {
             minOrderAmount,
             totalQuantity,
             0,                      // issuedQuantity (초기값 0)
-            0,                      // usageCount (초기값 0)
             perUserLimit,
             startDate,
             endDate,
             true,                   // isActive (초기 상태는 활성)
-            now,                    // createdAt
-            now                     // updatedAt
+            null,                    // createdAt
+            null                     // updatedAt
         );
     }
 
@@ -163,7 +197,6 @@ public class Coupon {
             throw new CouponException(ErrorCode.COUPON_ALREADY_ACTIVE);
         }
         this.isActive = true;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -174,7 +207,6 @@ public class Coupon {
             throw new CouponException(ErrorCode.COUPON_ALREADY_INACTIVE);
         }
         this.isActive = false;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -183,7 +215,6 @@ public class Coupon {
     public void updateName(String name) {
         validateName(name);
         this.name = name;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -191,12 +222,35 @@ public class Coupon {
      */
     public void updateCode(String code) {
         this.code = code;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
      * 할인 정보 수정
      */
+    public void updateDiscountInfo(DiscountType discountType, BigDecimal discountValue) {
+        validateDiscountType(discountType);
+        validateDiscountValue(discountValue);
+
+        // 정률 할인일 경우 할인율 범위 검증 (0 ~ 100)
+        if (discountType == DiscountType.PERCENTAGE) {
+            if (discountValue.compareTo(BigDecimal.ZERO) <= 0 || discountValue.compareTo(new BigDecimal("100")) > 0) {
+                throw new CouponException(ErrorCode.COUPON_PERCENTAGE_INVALID,
+                        "할인율은 0보다 크고 100 이하여야 합니다. 입력값: " + discountValue);
+            }
+        }
+
+        // 정액 할인일 경우 할인 금액 검증
+        if (discountType == DiscountType.FIXED) {
+            if (discountValue.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new CouponException(ErrorCode.COUPON_FIXED_AMOUNT_INVALID,
+                        "할인 금액은 0보다 커야 합니다. 입력값: " + discountValue);
+            }
+        }
+
+        this.discountType = discountType;
+        this.discountValue = discountValue;
+    }
+
     public void updateDiscountInfo(DiscountType discountType, BigDecimal discountValue, BigDecimal maxDiscountAmount) {
         validateDiscountType(discountType);
         validateDiscountValue(discountValue);
@@ -226,7 +280,6 @@ public class Coupon {
         this.discountType = discountType;
         this.discountValue = discountValue;
         this.maxDiscountAmount = maxDiscountAmount;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -238,7 +291,6 @@ public class Coupon {
                 "최소 주문 금액은 0 이상이어야 합니다. 입력값: " + minOrderAmount);
         }
         this.minOrderAmount = minOrderAmount;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -254,7 +306,6 @@ public class Coupon {
         }
 
         this.totalQuantity = totalQuantity;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -263,7 +314,6 @@ public class Coupon {
     public void updatePerUserLimit(int perUserLimit) {
         validatePerUserLimit(perUserLimit);
         this.perUserLimit = perUserLimit;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -273,7 +323,6 @@ public class Coupon {
         validateDateRange(startDate, endDate);
         this.startDate = startDate;
         this.endDate = endDate;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -306,37 +355,13 @@ public class Coupon {
 
     /**
      * 쿠폰 발급 시 수량 증가
+     * issuedQuantity는 한번 증가하면 절대 감소하지 않음 (영구적 기록)
      */
     public void increaseIssuedQuantity() {
-        if (this.issuedQuantity >= this.totalQuantity) {
+        if (!hasRemainingQuantity()) {
             throw new CouponException(ErrorCode.COUPON_ALL_ISSUED);
         }
         this.issuedQuantity++;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    /**
-     * 쿠폰 사용 시 사용량 증가
-     * totalQuantity 제한도 함께 검증
-     */
-    public void increaseUsageCount() {
-        if (this.usageCount >= this.totalQuantity) {
-            throw new CouponException(ErrorCode.COUPON_USAGE_LIMIT_EXCEEDED,
-                "쿠폰 사용 가능 횟수를 초과했습니다. 사용 가능 횟수: " + this.totalQuantity + ", 현재 사용 횟수: " + this.usageCount);
-        }
-        this.usageCount++;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    /**
-     * 쿠폰 사용 취소 시 사용량 감소 (보상 트랜잭션용)
-     */
-    public void decreaseUsageCount() {
-        if (this.usageCount <= 0) {
-            throw new CouponException(ErrorCode.COUPON_CANNOT_DECREASE_USAGE);
-        }
-        this.usageCount--;
-        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -412,10 +437,5 @@ public class Coupon {
         }
 
         return discountAmount;
-    }
-
-    // ===== 테스트를 위한 ID 설정 메서드 (인메모리 DB용) =====
-    public void setId(Long id) {
-        this.id = id;
     }
 }

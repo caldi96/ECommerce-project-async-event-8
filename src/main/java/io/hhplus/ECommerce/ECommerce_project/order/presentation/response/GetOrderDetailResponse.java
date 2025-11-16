@@ -41,14 +41,14 @@ public record GetOrderDetailResponse(
 
         return new GetOrderDetailResponse(
                 order.getId(),
-                order.getUserId(),
+                order.getUser().getId(),
                 order.getStatus(),
                 order.getTotalAmount(),
                 order.getShippingFee(),
                 order.getDiscountAmount(),
                 order.getPointAmount(),
                 order.getFinalAmount(),
-                order.getCouponId(),
+                order.getCoupon() != null ? order.getCoupon().getId() : null,
                 order.getCreatedAt(),
                 order.getUpdatedAt(),
                 order.getPaidAt(),
@@ -87,8 +87,8 @@ public record GetOrderDetailResponse(
         public static OrderItemDetail from(OrderItem orderItem) {
             return new OrderItemDetail(
                     orderItem.getId(),
-                    orderItem.getOrderId(),
-                    orderItem.getProductId(),
+                    orderItem.getOrders().getId(),
+                    orderItem.getProduct().getId(),
                     orderItem.getProductName(),
                     orderItem.getQuantity(),
                     orderItem.getUnitPrice(),
