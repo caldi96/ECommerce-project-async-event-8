@@ -25,6 +25,7 @@ public enum ErrorCode {
     PRODUCT_NOT_FOUND("상품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     PRODUCT_NAME_REQUIRED("상품명은 필수입니다.", HttpStatus.BAD_REQUEST),
     PRODUCT_PRICE_REQUIRED("가격은 필수입니다.", HttpStatus.BAD_REQUEST),
+    PRODUCT_ID_INVALID("PRODUCT ID는 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     PRODUCT_PRICE_INVALID("가격은 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     PRODUCT_STOCK_INVALID("재고는 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     PRODUCT_OUT_OF_STOCK("재고가 부족합니다.", HttpStatus.CONFLICT),
@@ -52,6 +53,7 @@ public enum ErrorCode {
     // ===== Point =====
     POINT_NOT_FOUND("포인트를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     POINT_AMOUNT_REQUIRED("포인트 금액은 필수입니다.", HttpStatus.BAD_REQUEST),
+    POINT_ID_INVALID("Point ID는 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     POINT_AMOUNT_INVALID("포인트 금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
     POINT_DESCRIPTION_REQUIRED("포인트 설명은 필수입니다.", HttpStatus.BAD_REQUEST),
     POINT_ORDER_ID_REQUIRED("주문 ID는 필수입니다.", HttpStatus.BAD_REQUEST),
@@ -81,6 +83,7 @@ public enum ErrorCode {
     ORDER_NOT_FOUND("주문을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     ORDER_USER_ID_REQUIRED("사용자 ID는 필수입니다.", HttpStatus.BAD_REQUEST),
     ORDER_AMOUNT_REQUIRED("주문 금액은 필수입니다.", HttpStatus.BAD_REQUEST),
+    ORDER_ID_INVALID("Order ID는 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     ORDER_AMOUNT_INVALID("주문 금액은 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     ORDER_DISCOUNT_AMOUNT_INVALID("할인 금액은 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     ORDER_POINT_AMOUNT_INVALID("포인트 사용 금액은 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST),

@@ -6,9 +6,14 @@ import io.hhplus.ECommerce.ECommerce_project.common.exception.UserException;
 import io.hhplus.ECommerce.ECommerce_project.point.application.command.ChargePointCommand;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.entity.Point;
 import io.hhplus.ECommerce.ECommerce_project.point.infrastructure.PointRepository;
+import io.hhplus.ECommerce.ECommerce_project.user.application.service.UserFinderService;
 import io.hhplus.ECommerce.ECommerce_project.user.domain.entity.User;
+import io.hhplus.ECommerce.ECommerce_project.user.domain.service.UserDomainService;
 import io.hhplus.ECommerce.ECommerce_project.user.infrastructure.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,11 +25,19 @@ public class ChargePointUseCase {
 
     private final PointRepository pointRepository;
     private final UserRepository userRepository;
+    private final UserDomainService userDomainService;
+    private final UserFinderService userFinderService;
+
+    @Retryable(
+            retryFor = OptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 100)
+    )
 
     @Transactional
     public Point execute(ChargePointCommand command) {
         // 1. 유저 존재 유무 확인 및 조회
-        User user = userRepository.findByIdWithLock(command.userId())
+        User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
 
         // 2. 충전 포인트 금액 검증

@@ -20,4 +20,12 @@ public class UserFinderService {
         return userRepository.findById(id)
                 .orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
     }
+
+    /**
+     * 비관적 락으로 유저 조회
+     */
+    public User getUserWithLock(Long userId) {
+        return userRepository.findByIdWithLock(userId)
+                .orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
+    }
 }
