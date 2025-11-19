@@ -126,6 +126,7 @@ public enum ErrorCode {
     COUPON_CODE_REQUIRED("쿠폰 코드는 필수입니다.", HttpStatus.BAD_REQUEST),
     COUPON_DISCOUNT_TYPE_REQUIRED("할인 타입은 필수입니다.", HttpStatus.BAD_REQUEST),
     COUPON_DISCOUNT_VALUE_REQUIRED("할인 값은 필수입니다.", HttpStatus.BAD_REQUEST),
+    COUPON_ID_INVALID("USER ID는 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     COUPON_DISCOUNT_VALUE_INVALID("할인 값은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
     COUPON_PERCENTAGE_INVALID("할인율은 0보다 크고 100 이하여야 합니다.", HttpStatus.BAD_REQUEST),
     COUPON_FIXED_AMOUNT_INVALID("할인 금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
