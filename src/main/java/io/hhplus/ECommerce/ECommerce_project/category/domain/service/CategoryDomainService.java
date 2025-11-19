@@ -11,6 +11,15 @@ import java.util.List;
 public class CategoryDomainService {
 
     /**
+     * ID 값이 유효한지 검증
+     */
+    public void validateId(Long id) {
+        if (id == null || id <= 0) {
+            throw new CategoryException(ErrorCode.CATEGORY_ID_INVALID);
+        }
+    }
+
+    /**
      * 이름이 비어있는지 검증
      */
     public void validateNameNotEmpty(String name) {
@@ -45,15 +54,6 @@ public class CategoryDomainService {
     public void validateDeletable(Category category) {
         if (category.isDeleted()) {
             throw new CategoryException(ErrorCode.CATEGORY_ALREADY_DELETED);
-        }
-    }
-
-    /**
-     * ID 값이 유효한지 검증
-     */
-    public void validateId(Long id) {
-        if (id == null || id <= 0) {
-            throw new CategoryException(ErrorCode.CATEGORY_ID_INVALID);
         }
     }
 }

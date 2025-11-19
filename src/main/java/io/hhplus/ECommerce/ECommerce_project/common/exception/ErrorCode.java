@@ -17,6 +17,7 @@ public enum ErrorCode {
 
     // ===== User =====
     USER_NOT_FOUND("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    USER_ID_INVALID("USER ID는 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     USER_ID_REQUIRED("사용자 ID는 필수입니다.", HttpStatus.BAD_REQUEST),
     USER_POINT_RESTORE_FAILED("유저 포인트 복구에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
@@ -68,6 +69,7 @@ public enum ErrorCode {
     // ===== Cart =====
     CART_NOT_FOUND("장바구니 아이템을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     CART_PRODUCT_ID_REQUIRED("상품 ID는 필수입니다.", HttpStatus.BAD_REQUEST),
+    CART_ID_INVALID("CART ID는 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     CART_QUANTITY_INVALID("수량은 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
     CART_QUANTITY_CANNOT_BE_LESS_THAN_ONE("수량은 1 미만이 될 수 없습니다. 삭제하려면 장바구니에서 제거하세요.", HttpStatus.CONFLICT),
     CART_INCREASE_AMOUNT_INVALID("증가량은 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST),
