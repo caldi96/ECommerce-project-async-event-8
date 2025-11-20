@@ -3,7 +3,6 @@ package io.hhplus.ECommerce.ECommerce_project.product.application;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.ProductFinderService;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.service.ProductDomainService;
-import io.hhplus.ECommerce.ECommerce_project.product.infrastructure.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ActivateProductUseCase {
 
-    private final ProductRepository productRepository;
     private final ProductDomainService productDomainService;
     private final ProductFinderService productFinderService;
 

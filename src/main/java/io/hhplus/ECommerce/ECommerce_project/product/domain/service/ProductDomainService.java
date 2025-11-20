@@ -2,7 +2,6 @@ package io.hhplus.ECommerce.ECommerce_project.product.domain.service;
 
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ProductException;
-import io.hhplus.ECommerce.ECommerce_project.common.exception.UserException;
 import org.springframework.stereotype.Component;
 
 @Component

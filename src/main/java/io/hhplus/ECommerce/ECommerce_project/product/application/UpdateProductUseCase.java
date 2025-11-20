@@ -24,10 +24,10 @@ public class UpdateProductUseCase {
         // 1. ID 검증
         productDomainService.validateId(command.id());
 
-        // 1. 기존 상품 조회
+        // 2. 기존 상품 조회
         Product product = productFinderService.getActiveProduct(command.id());
 
-        // 2. 도메인 메서드를 통해 각 필드 업데이트
+        // 3. 도메인 메서드를 통해 각 필드 업데이트
         if (command.name() != null) {
             product.updateName(command.name());
         }
@@ -64,7 +64,7 @@ public class UpdateProductUseCase {
             }
         }
 
-        // 3. 저장된 변경사항 반환
+        // 4. 저장된 변경사항 반환
         return product;
     }
 
