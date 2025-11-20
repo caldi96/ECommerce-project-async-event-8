@@ -36,4 +36,14 @@ public class OrderDomainService {
                     " 현재 상태: " + order.getStatus());
         }
     }
+
+    /**
+     * 주문이 결제 가능한 상태인지 확인 (PENDING 상태만 결제 가능)
+     */
+    public void validateCanPayment(Orders order) {
+        if (!order.isPending()) {
+            throw new OrderException(ErrorCode.ORDER_INVALID_STATUS_FOR_PAYMENT,
+                    "결제 대기 중인 주문만 결제할 수 있습니다. 현재 상태: " + order.getStatus());
+        }
+    }
 }

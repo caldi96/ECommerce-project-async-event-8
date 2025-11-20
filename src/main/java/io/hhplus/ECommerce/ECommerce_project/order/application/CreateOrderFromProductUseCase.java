@@ -181,7 +181,7 @@ public class CreateOrderFromProductUseCase {
 
             // 3-6. 쿠폰 사용 처리 (usedCount 증가)
             userCoupon.use(coupon.getPerUserLimit());
-            userCouponRepository.save(userCoupon);
+            userCouponRepository.save(userCoupon); // 테스트 코드 dirty check 오류때문에 추가
         }
 
         // 4. 포인트 사용 (포인트 사용시에만)
@@ -237,7 +237,7 @@ public class CreateOrderFromProductUseCase {
                 // 7-1. 기존 CHARGE/REFUND 포인트는 부분 사용 처리
                 Point originalPoint = pointsToUpdate.get(i);
                 originalPoint.usePartially(usageAmount);
-                pointRepository.save(originalPoint);
+                pointRepository.save(originalPoint); // 테스트 코드 dirty check 오류때문에 추가
 
                 // 7-2. PointUsageHistory 생성 (주문과 포인트 연결 추적용)
                 PointUsageHistory history = PointUsageHistory.create(
@@ -252,7 +252,7 @@ public class CreateOrderFromProductUseCase {
             if (pointAmount.compareTo(BigDecimal.ZERO) > 0) {
                 // 7-4. User의 포인트 잔액 차감
                 user.usePoint(pointAmount);
-                userRepository.save(user);
+                userRepository.save(user); // 테스트 코드 dirty check 오류때문에 추가
             }
         }
 

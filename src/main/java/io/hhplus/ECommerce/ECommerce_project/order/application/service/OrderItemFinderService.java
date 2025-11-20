@@ -13,6 +13,9 @@ public class OrderItemFinderService {
 
     private final OrderItemRepository orderItemRepository;
 
+    /**
+     * 주문 항목 목록 조회
+     */
     public List<OrderItem> getOrderItems(Long orderId) {
         return orderItemRepository.findByOrders_Id(orderId);
     }
