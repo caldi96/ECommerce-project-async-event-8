@@ -1,4 +1,4 @@
-package io.hhplus.ECommerce.ECommerce_project.common.config;
+package io.hhplus.ECommerce.ECommerce_project.common.config.cache;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.cache.CacheManager;

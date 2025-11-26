@@ -1,4 +1,4 @@
-package io.hhplus.ECommerce.ECommerce_project.common.config;
+package io.hhplus.ECommerce.ECommerce_project.common.config.cache;
 
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Bean;
