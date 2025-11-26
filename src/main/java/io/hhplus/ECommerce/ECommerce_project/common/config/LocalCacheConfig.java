@@ -29,7 +29,7 @@ public class LocalCacheConfig {
     @Primary  // 기본 CacheManager로 설정
     public CacheManager localCacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
-        // 캐시명을 지정하지 않아 동적으로 생성됨
+
         cacheManager.setCaffeine(Caffeine.newBuilder()
                 .expireAfterWrite(5, TimeUnit.MINUTES)  // 5분 후 만료
                 .maximumSize(100)  // 최대 100개 항목

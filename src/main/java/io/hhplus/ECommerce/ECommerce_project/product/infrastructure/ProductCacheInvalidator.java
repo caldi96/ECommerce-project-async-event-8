@@ -10,6 +10,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ProductCacheInvalidator {
 
+    private static final int FIRST_PAGE = 0;
+    private static final int DEFAULT_PAGE_SIZE = 20;
+
     private final CacheManager redisCacheManager;
 
     public void evictProductListCache(Long categoryId) {
@@ -17,7 +20,7 @@ public class ProductCacheInvalidator {
         if (cache != null) {
             // 5가지 정렬 × 첫페이지 캐시 삭제
             for (ProductSortType sortType : ProductSortType.values()) {
-                String key = categoryId + "_" + sortType + "_0_20";
+                String key = categoryId + "_" + sortType + "_" + FIRST_PAGE + "_" + DEFAULT_PAGE_SIZE;
                 cache.evict(key);
             }
         }
