@@ -54,4 +54,11 @@ public class ProductFinderService {
     public Page<Product> getProductPage(Long categoryId, Pageable pageable) {
         return productRepository.findProducts(categoryId, pageable);
     }
+
+    /**
+     * 인기상품 조회
+     */
+    public List<Product> getTop20Products(Pageable pageable) {
+        return productRepository.findTop20Products(pageable);
+    }
 }

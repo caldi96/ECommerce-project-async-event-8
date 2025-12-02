@@ -2,15 +2,18 @@ package io.hhplus.ECommerce.ECommerce_project.product.presentation;
 
 import io.hhplus.ECommerce.ECommerce_project.product.application.*;
 import io.hhplus.ECommerce.ECommerce_project.product.application.enums.ProductSortType;
+import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
 import io.hhplus.ECommerce.ECommerce_project.product.presentation.request.*;
 import io.hhplus.ECommerce.ECommerce_project.product.presentation.response.PageResponse;
 import io.hhplus.ECommerce.ECommerce_project.product.presentation.response.ProductResponse;
+import io.hhplus.ECommerce.ECommerce_project.product.presentation.response.RankedProductResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 @RestController
 @RequiredArgsConstructor
@@ -27,6 +30,7 @@ public class ProductController {
     private final ActivateProductUseCase activateProductUseCase;
     private final DeactivateProductUseCase deactivateProductUseCase;
     private final DeleteProductUseCase deleteProductUseCase;
+    private final GetTopRankedProductsUseCase getTopRankedProductsUseCase;
 
     /**
      * 상품 등록
@@ -73,6 +77,24 @@ public class ProductController {
     public ResponseEntity<ProductResponse> getProduct(@PathVariable Long id) {
         var product = getProductUseCase.execute(id);
         return ResponseEntity.ok(ProductResponse.from(product));
+    }
+
+    /**
+     * 인기 상품 TOP 20 조회
+     */
+    @GetMapping("/top-rank")
+    public ResponseEntity<List<RankedProductResponse>> getTopRankedProducts() {
+        List<Product> products = getTopRankedProductsUseCase.execute();
+
+        // 랭킹 추가 (1~20)
+        List<RankedProductResponse> rankedProducts = IntStream.range(0, products.size())
+                .mapToObj(i -> new RankedProductResponse(
+                        i + 1, // rank
+                        ProductResponse.from(products.get(i))
+                ))
+                .toList();
+
+        return ResponseEntity.ok(rankedProducts);
     }
 
     /**

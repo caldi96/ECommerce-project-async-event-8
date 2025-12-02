@@ -33,4 +33,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 상품 목록 조회 (카테고리 필터링, 정렬, 페이징)
     @Query("SELECT p FROM Product p WHERE (:categoryId IS NULL OR p.category.id = :categoryId) AND p.isActive = true AND p.deletedAt IS NULL")
     Page<Product> findProducts(@Param("categoryId") Long categoryId, Pageable pageable);
+
+    // 인기상품 TOP 20 조회 (판매량 > 조회수 > 생성일 순)
+    @Query("""
+            SELECT p
+            FROM Product p
+            WHERE p.isActive = true AND p.deletedAt IS NULL
+            ORDER BY p.soldCount DESC, p.viewCount DESC, p.createdAt ASC, p.id ASC
+            """)
+    List<Product> findTop20Products(Pageable pageable);
 }
