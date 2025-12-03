@@ -2,17 +2,22 @@ package io.hhplus.ECommerce.ECommerce_project.payment.application;
 
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.PaymentException;
+import io.hhplus.ECommerce.ECommerce_project.order.application.service.CompensationService;
 import io.hhplus.ECommerce.ECommerce_project.order.application.service.OrderFinderService;
+import io.hhplus.ECommerce.ECommerce_project.order.application.service.OrderItemFinderService;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.entity.Orders;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.service.OrderDomainService;
 import io.hhplus.ECommerce.ECommerce_project.payment.application.command.CreatePaymentCommand;
-import io.hhplus.ECommerce.ECommerce_project.order.application.service.CompensationService;
 import io.hhplus.ECommerce.ECommerce_project.payment.domain.entity.Payment;
+import io.hhplus.ECommerce.ECommerce_project.payment.domain.event.PaymentCompletedEvent;
 import io.hhplus.ECommerce.ECommerce_project.payment.infrastructure.PaymentRepository;
 import io.hhplus.ECommerce.ECommerce_project.payment.presentation.response.CreatePaymentResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +27,8 @@ public class CreatePaymentUseCase {
     private final OrderDomainService orderDomainService;
     private final OrderFinderService orderFinderService;
     private final CompensationService compensationService;
+    private final OrderItemFinderService orderItemFinderService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public CreatePaymentResponse execute(CreatePaymentCommand command) {
@@ -54,6 +61,31 @@ public class CreatePaymentUseCase {
 
             // 5. 주문 상태를 PAID로 변경
             order.paid();
+
+            // 6. Redis 인기상품에 판매 상품의 score 증가
+            /*
+            orderItemFinderService.getOrderItems(order.getId())
+                    .forEach(orderItem ->
+                            redisRankingService.incrementSoldCount(
+                                    orderItem.getProduct().getId(),
+                                    orderItem.getQuantity()
+                            )
+                    );
+
+             */
+
+            List<PaymentCompletedEvent.OrderItemInfo> orderItemInfoes =
+                    orderItemFinderService.getOrderItems(order.getId())
+                            .stream()
+                            .map(orderItem -> new PaymentCompletedEvent.OrderItemInfo(
+                                    orderItem.getProduct().getId(),
+                                    orderItem.getQuantity()
+                            ))
+                            .toList();
+
+            applicationEventPublisher.publishEvent(
+                    PaymentCompletedEvent.of(order.getId(), orderItemInfoes)
+            );
 
             return CreatePaymentResponse.from(savedPayment, order);
 
