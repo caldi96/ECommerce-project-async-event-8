@@ -3,9 +3,11 @@ package io.hhplus.ECommerce.ECommerce_project.coupon.application.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Redis Sorted Set을 사용한 선착순 쿠폰 발급 서비스
@@ -27,11 +29,18 @@ import java.time.Duration;
 public class RedisCouponService {
 
     private final RedisTemplate<String, String> redisTemplate;
+    private final RedisScript<Long> redisCouponIssueScript;
 
     private static final String COUPON_ISSUE_PREFIX = "coupon:issue:";
+    private static final long DEFAULT_TTL_SECONDS = 30 * 24 * 60 * 60; // 30일
 
     /**
      * 선착순 쿠폰 발급 시도
+     *
+     * 장점:
+     * 1. 완벽한 원자성 보장 (모든 연산이 하나의 트랜잭션)
+     * 2. 네트워크 왕복 최소화 (3 RTT → 1 RTT)
+     * 3. Race Condition 완전 방지
      *
      * @param couponId 쿠폰 ID
      * @param userId 사용자 ID
@@ -42,43 +51,33 @@ public class RedisCouponService {
         String key = COUPON_ISSUE_PREFIX + couponId;
         long timestamp = System.currentTimeMillis();
 
-        // 1. 현재 발급 수량 확인
-        Long currentCount = redisTemplate.opsForZSet().zCard(key);
-        if (currentCount != null && currentCount >= maxQuantity) {
-            log.debug("쿠폰 발급 실패: 수량 초과. couponId={}, currentCount={}, maxQuantity={}",
-                    couponId, currentCount, maxQuantity);
+        // Lua Script 실행
+        Long result = redisTemplate.execute(
+                redisCouponIssueScript,
+                List.of(key),   // KEYS
+                userId.toString(),
+                String.valueOf(timestamp),
+                String.valueOf(maxQuantity),
+                String.valueOf(DEFAULT_TTL_SECONDS) // ARGV
+        );
+
+        if (result == null) {
+            log.error("Lua Script 실행 실패. couponId={}, userId={}", couponId, userId);
             return false;
         }
 
-        // 2. Sorted Set에 추가 (중복 시 false 반환)
-        // ZADD NX 옵션: 멤버가 없을 때만 추가
-        Boolean added = redisTemplate.opsForZSet().addIfAbsent(key, userId.toString(), timestamp);
-
-        // 3. 이미 발급받은 경우 쿠폰 발급 실패
-        if (Boolean.FALSE.equals(added)) {
+        // 결과 처리
+        if (result == -1) {
             log.debug("쿠폰 발급 실패: 중복 발급. couponId={}, userId={}", couponId, userId);
             return false;
-        }
-
-        // 4. 본인의 순위 확인 (0부터 시작, 0 = 1등)
-        Long rank = redisTemplate.opsForZSet().rank(key, userId.toString());
-
-        // 5. 순위가 maxQuantity 이내인지 확인
-        if (rank != null && rank < maxQuantity) {
-            // TTL 설정 (30일 후 자동 삭제)
-            Long ttl = redisTemplate.getExpire(key);
-            if (ttl == null || ttl == -1) {
-                redisTemplate.expire(key, Duration.ofDays(30));
-            }
-
-            log.info("쿠폰 발급 성공. couponId={}, userId={}, rank={}", couponId, userId, rank + 1);
+        } else if (result == -2) {
+            log.debug("쿠폰 발급 실패: 수량 초과. couponId={}, userId={}", couponId, userId);
+            return false;
+        } else if (result >= 0) {
+            log.info("쿠폰 발급 성공. couponId={}, userId={}, rank={}", couponId, userId, result + 1);
             return true;
         }
 
-        // 6. 순위 초과 시 제거 후 실패
-        redisTemplate.opsForZSet().remove(key, userId.toString());
-        log.debug("쿠폰 발급 실패: 수량 초과. couponId={}, userId={}, rank={}",
-                couponId, userId, rank != null ? rank + 1 : "unknown");
         return false;
     }
 
