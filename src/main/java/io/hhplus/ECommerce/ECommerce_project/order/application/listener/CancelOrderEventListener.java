@@ -13,9 +13,7 @@ import io.hhplus.ECommerce.ECommerce_project.point.application.service.PointFind
 import io.hhplus.ECommerce.ECommerce_project.point.application.service.PointUsageHistoryFinderService;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.entity.Point;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.entity.PointUsageHistory;
-import io.hhplus.ECommerce.ECommerce_project.product.application.service.ProductFinderService;
-import io.hhplus.ECommerce.ECommerce_project.product.application.service.RedisStockService;
-import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
+import io.hhplus.ECommerce.ECommerce_project.product.application.service.StockService;
 import io.hhplus.ECommerce.ECommerce_project.user.application.service.UserFinderService;
 import io.hhplus.ECommerce.ECommerce_project.user.domain.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -41,8 +39,7 @@ public class CancelOrderEventListener {
 
     private final OrderFinderService orderFinderService;
     private final OrderItemFinderService orderItemFinderService;
-    private final ProductFinderService productFinderService;
-    private final RedisStockService redisStockService;
+    private final StockService stockService;
     private final CouponFinderService couponFinderService;
     private final UserCouponFinderService userCouponFinderService;
     private final PointFinderService pointFinderService;
@@ -98,17 +95,10 @@ public class CancelOrderEventListener {
             List<OrderItem> orderItems = orderItemFinderService.getOrderItems(order.getId());
 
             for (OrderItem orderItem : orderItems) {
-                Long productId = orderItem.getProduct().getId();
-
-                // DB 재고 복구 (비관적 락)
-                Product product = productFinderService.getProductWithLock(productId);
-                product.increaseStock(orderItem.getQuantity());
-
-                // Redis 재고 복구 (원자적 증가)
-                redisStockService.increaseStock(productId, orderItem.getQuantity());
-
-                log.debug("재고 복구 완료: productId={}, quantity={}",
-                        productId, orderItem.getQuantity());
+                stockService.compensateStock(
+                        orderItem.getProduct().getId(),
+                        orderItem.getQuantity()
+                );
             }
 
             log.info("재고 복구 완료: orderId={}, itemCount={}",
