@@ -1,8 +1,5 @@
 package io.hhplus.ECommerce.ECommerce_project.payment.application;
 
-import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
-import io.hhplus.ECommerce.ECommerce_project.common.exception.PaymentException;
-import io.hhplus.ECommerce.ECommerce_project.order.application.service.CompensationService;
 import io.hhplus.ECommerce.ECommerce_project.order.application.service.OrderFinderService;
 import io.hhplus.ECommerce.ECommerce_project.order.application.service.OrderItemFinderService;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.entity.Orders;
@@ -10,6 +7,7 @@ import io.hhplus.ECommerce.ECommerce_project.order.domain.service.OrderDomainSer
 import io.hhplus.ECommerce.ECommerce_project.payment.application.command.CreatePaymentCommand;
 import io.hhplus.ECommerce.ECommerce_project.payment.domain.entity.Payment;
 import io.hhplus.ECommerce.ECommerce_project.payment.domain.event.PaymentCompletedEvent;
+import io.hhplus.ECommerce.ECommerce_project.payment.domain.event.PaymentFailedEvent;
 import io.hhplus.ECommerce.ECommerce_project.payment.infrastructure.PaymentRepository;
 import io.hhplus.ECommerce.ECommerce_project.payment.presentation.response.CreatePaymentResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +24,6 @@ public class CreatePaymentUseCase {
     private final PaymentRepository paymentRepository;
     private final OrderDomainService orderDomainService;
     private final OrderFinderService orderFinderService;
-    private final CompensationService compensationService;
     private final OrderItemFinderService orderItemFinderService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
@@ -97,11 +94,24 @@ public class CreatePaymentUseCase {
             order.paymentFailed();
 
             // Saga 패턴: 주문 생성 시 차감한 리소스 복구 (보상 트랜잭션)
-            compensationService.compensate(order);
+//            compensationService.compensate(order);
 
-            // 예외를 다시 던져서 트랜잭션이 롤백되도록 함
+            // Saga 패턴: 기존 동기 방식을 비동기 이벤트 발생으로 수정
+            applicationEventPublisher.publishEvent(
+                    PaymentFailedEvent.of(
+                            order.getId(),
+                            order.getUser().getId(),
+                            e.getMessage()
+                    )
+            );
+
+            // 이벤트를 발행한 후 예외를 던지면 트랜잭션이 롤백됨 롤백되면 order.paymentFailed()와 이벤트가 발행되지 않음
+            /*
             throw new PaymentException(ErrorCode.PAYMENT_ALREADY_FAILED,
                 "결제 처리 중 오류가 발생했습니다: " + e.getMessage());
+
+             */
+            return CreatePaymentResponse.failed(payment, order);
         }
     }
 }

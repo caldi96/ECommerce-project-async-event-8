@@ -16,17 +16,32 @@ public record CreatePaymentResponse(
     PaymentMethod paymentMethod,
     PaymentStatus paymentStatus,
     LocalDateTime paidAt,
-    OrderStatus orderStatus
+    OrderStatus orderStatus,
+    String message
 ) {
     public static CreatePaymentResponse from(Payment payment, Orders order) {
         return new CreatePaymentResponse(
-            payment.getId(),
-            payment.getOrder().getId(),
-            payment.getAmount(),
-            payment.getPaymentMethod(),
-            payment.getPaymentStatus(),
-            payment.getCompletedAt(),
-            order.getStatus()
+                payment.getId(),
+                payment.getOrder().getId(),
+                payment.getAmount(),
+                payment.getPaymentMethod(),
+                payment.getPaymentStatus(),
+                payment.getCompletedAt(),
+                order.getStatus(),
+                payment.getPaymentStatus().getResponseMessage()
+        );
+    }
+
+    public static CreatePaymentResponse failed(Payment payment, Orders order) {
+        return new CreatePaymentResponse(
+                payment.getId(),
+                payment.getOrder().getId(),
+                payment.getAmount(),
+                payment.getPaymentMethod(),
+                payment.getPaymentStatus(),
+                payment.getFailedAt(),
+                order.getStatus(),
+                payment.getPaymentStatus().getResponseMessage()
         );
     }
 }
