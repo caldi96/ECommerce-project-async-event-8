@@ -11,6 +11,7 @@ import io.hhplus.ECommerce.ECommerce_project.order.application.command.CreateOrd
 import io.hhplus.ECommerce.ECommerce_project.order.application.dto.ValidatedOrderFromProductData;
 import io.hhplus.ECommerce.ECommerce_project.order.application.service.OrderCompletionService;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.constants.ShippingPolicy;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationFailedEvent;
 import io.hhplus.ECommerce.ECommerce_project.order.presentation.response.CreateOrderResponse;
 import io.hhplus.ECommerce.ECommerce_project.point.application.service.PointFinderService;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.entity.Point;
@@ -24,6 +25,7 @@ import io.hhplus.ECommerce.ECommerce_project.user.application.service.UserFinder
 import io.hhplus.ECommerce.ECommerce_project.user.domain.entity.User;
 import io.hhplus.ECommerce.ECommerce_project.user.domain.service.UserDomainService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -44,6 +46,7 @@ public class CreateOrderFromProductUseCase {
     private final PointDomainService pointDomainService;
     private final PointFinderService pointFinderService;
     private final OrderCompletionService orderCompletionService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public CreateOrderResponse execute(CreateOrderFromProductCommand command) {
 
@@ -57,8 +60,16 @@ public class CreateOrderFromProductUseCase {
             // 3. 주문 완료 (트랜잭션 2)
             return orderCompletionService.completeOrderFromProduct(command, validatedOrderFromProductData);
         } catch (Exception e) {
-            // 4. 실패 시 재고 복구 (보상 트랜잭션)
-            stockService.compensateStock(command.productId(), command.quantity());
+            // 4. 실패 시 비동기 이벤트 발행 (재고 복구)
+            applicationEventPublisher.publishEvent(
+                    OrderCreationFailedEvent.ofSingleProduct(
+                            command.userId(),
+                            command.productId(),
+                            command.quantity(),
+                            e.getMessage()
+                    )
+            );
+
             throw e;
         }
     }
