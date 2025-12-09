@@ -54,4 +54,18 @@ public class ProductFinderService {
     public Page<Product> getProductPage(Long categoryId, Pageable pageable) {
         return productRepository.findProducts(categoryId, pageable);
     }
+
+    /**
+     * 인기상품 조회
+     */
+    public List<Product> getTop20Products(Pageable pageable) {
+        return productRepository.findTop20Products(pageable);
+    }
+
+    /**
+     * 상품 ID 값으로 모든 상품 가져오기
+     */
+    public List<Product> getAllProductsById(List<Long> productIds) {
+        return productRepository.findAllById(productIds);
+    }
 }
