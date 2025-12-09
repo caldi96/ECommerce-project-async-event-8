@@ -2,6 +2,7 @@ package io.hhplus.ECommerce.ECommerce_project.order.application;
 
 import io.hhplus.ECommerce.ECommerce_project.common.exception.CouponException;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
+import io.hhplus.ECommerce.ECommerce_project.common.exception.ProductException;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.CouponFinderService;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.UserCouponFinderService;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.Coupon;
@@ -15,6 +16,7 @@ import io.hhplus.ECommerce.ECommerce_project.point.application.service.PointFind
 import io.hhplus.ECommerce.ECommerce_project.point.domain.entity.Point;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.service.PointDomainService;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.ProductFinderService;
+import io.hhplus.ECommerce.ECommerce_project.product.application.service.RedisStockService;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.StockService;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.service.ProductDomainService;
@@ -32,6 +34,7 @@ import java.util.List;
 public class CreateOrderFromProductUseCase {
 
     private final StockService stockService;
+    private final RedisStockService redisStockService;
     private final UserDomainService userDomainService;
     private final UserFinderService userFinderService;
     private final ProductDomainService productDomainService;
@@ -72,44 +75,75 @@ public class CreateOrderFromProductUseCase {
         productDomainService.validateId(command.productId());
         productDomainService.validateQuantity(command.quantity());
 
-        // 3. 상품 조회 및 검증 (락 없이)
+        // 3. 상품 조회 (가격, 활성화 상태, 최소/최대 주문량 정보용)
         Product product = productFinderService.getProduct(command.productId());
 
-        // 주문 가능 여부 검증 (비활성/재고/최소/최대 주문량 체크)
-        product.validateOrder(command.quantity());
+        // 4. Redis 재고 조회
+        Long redisStock = redisStockService.getStock(command.productId());
 
-        // 4. 주문 금액 계산
+        // 5. 주문 가능 여부 검증 (활성화 상태 체크)
+        if (!product.isActive()) {
+            throw new ProductException(
+                    ErrorCode.PRODUCT_NOT_ACTIVE,
+                    " 비활성 상태의 상품은 주문할 수 없습니다."
+            );
+        }
+
+        // 6. Redis 재고 검증 (실시간 재고)
+        if (redisStock < command.quantity()) {
+            throw new ProductException(
+                    ErrorCode.PRODUCT_OUT_OF_STOCK,
+                    " 현재 재고: " + redisStock + ", 요청 수량: " + command.quantity()
+            );
+        }
+
+        // 7. 최소/최대 주문량 검증
+        if (product.getMinOrderQuantity() != null && command.quantity() < product.getMinOrderQuantity()) {
+            throw new ProductException(
+                    ErrorCode.PRODUCT_MIN_ORDER_QUANTITY_NOT_MET,
+                    " 최소 주문 수량: " + product.getMinOrderQuantity() + ", 요청 수량: " + command.quantity()
+            );
+        }
+
+        if (product.getMaxOrderQuantity() != null && command.quantity() > product.getMaxOrderQuantity()) {
+            throw new ProductException(
+                    ErrorCode.PRODUCT_MAX_ORDER_QUANTITY_EXCEEDED,
+                    " 최대 주문 수량: " + product.getMaxOrderQuantity() + ", 요청 수량: " + command.quantity()
+            );
+        }
+
+        // 8. 주문 금액 계산
         BigDecimal totalAmount = product.getPrice()
                 .multiply(BigDecimal.valueOf(command.quantity()));
 
-        // 5. 배송비 계산
+        // 9. 배송비 계산
         BigDecimal shippingFee = ShippingPolicy.calculateShippingFee(totalAmount);
 
-        // 6. 쿠폰 사전 검증 (락 없이)
+        // 10. 쿠폰 사전 검증 (락 없이)
         BigDecimal discountAmount = BigDecimal.ZERO;
 
         Coupon coupon = null;
 
         if (command.couponId() != null) {
-            // 7-1. 사용자 쿠폰 조회 (락 없음)
+            // 10-1. 사용자 쿠폰 조회 (락 없음)
             UserCoupon userCoupon = userCouponFinderService
                     .getUserCouponByUserIdAndCouponId(command.userId(), command.couponId())
                     .orElseThrow(() -> new CouponException(ErrorCode.USER_COUPON_NOT_FOUND));
 
-            // 7-2. 쿠폰 조회 및 검증
+            // 10-2. 쿠폰 조회 및 검증
             coupon = couponFinderService.getCoupon(command.couponId());
 
-            // 7-3. 쿠폰 유효성 검증 (활성화, 기간 등)
+            // 10-3. 쿠폰 유효성 검증 (활성화, 기간 등)
             coupon.validateAvailability();
 
-            // 7-4. 사용자 쿠폰 사용 가능 여부 확인
+            // 10-4. 사용자 쿠폰 사용 가능 여부 확인
             userCoupon.validateCanUse(coupon.getPerUserLimit());
 
-            // 7-5. 할인 금액 계산 (최소 주문 금액 검증 포함)
+            // 10-5. 할인 금액 계산 (최소 주문 금액 검증 포함)
             discountAmount = coupon.calculateDiscountAmount(totalAmount);
         }
 
-        // 8. 포인트 사전 검증
+        // 11. 포인트 사전 검증
         if (command.pointAmount() != null
                 && command.pointAmount().compareTo(BigDecimal.ZERO) > 0) {
 

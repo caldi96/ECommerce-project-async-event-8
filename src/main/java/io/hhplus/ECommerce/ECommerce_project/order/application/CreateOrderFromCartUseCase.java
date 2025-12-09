@@ -5,6 +5,7 @@ import io.hhplus.ECommerce.ECommerce_project.cart.domain.entity.Cart;
 import io.hhplus.ECommerce.ECommerce_project.cart.domain.service.CartDomainService;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.CouponException;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
+import io.hhplus.ECommerce.ECommerce_project.common.exception.ProductException;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.CouponFinderService;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.UserCouponFinderService;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.Coupon;
@@ -19,6 +20,7 @@ import io.hhplus.ECommerce.ECommerce_project.point.application.service.PointFind
 import io.hhplus.ECommerce.ECommerce_project.point.domain.entity.Point;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.service.PointDomainService;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.ProductFinderService;
+import io.hhplus.ECommerce.ECommerce_project.product.application.service.RedisStockService;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.StockService;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.service.ProductDomainService;
@@ -38,6 +40,7 @@ import java.util.Map;
 public class CreateOrderFromCartUseCase {
 
     private final StockService stockService;
+    private final RedisStockService redisStockService;
     private final UserDomainService userDomainService;
     private final UserFinderService userFinderService;
     private final CartDomainService cartDomainService;
@@ -119,11 +122,42 @@ public class CreateOrderFromCartUseCase {
             productDomainService.validateId(productId);
             productDomainService.validateQuantity(totalQuantity);
 
-            // 상품 조회 및 검증 (락 없이)
+            // 상품 조회 (가격, 활성화 상태, 최소/최대 주문량 정보용)
             Product product = productFinderService.getProduct(productId);
 
-            // 주문 가능 여부 검증 (비활성/재고/최소/최대 주문량 체크)
-            product.validateOrder(totalQuantity);
+            // Redis 재고 조회
+            Long redisStock = redisStockService.getStock(productId);
+
+            // 주문 가능 여부 검증 (활성화 상태 체크)
+            if (!product.isActive()) {
+                throw new ProductException(
+                        ErrorCode.PRODUCT_NOT_ACTIVE,
+                        " 비활성 상태의 상품은 주문할 수 없습니다. productId=" + productId
+                );
+            }
+
+            // Redis 재고 검증 (실시간 재고)
+            if (redisStock < totalQuantity) {
+                throw new ProductException(
+                        ErrorCode.PRODUCT_OUT_OF_STOCK,
+                        " 현재 재고: " + redisStock + ", 요청 수량: " + totalQuantity + ", productId=" + productId
+                );
+            }
+
+            // 최소/최대 주문량 검증
+            if (product.getMinOrderQuantity() != null && totalQuantity < product.getMinOrderQuantity()) {
+                throw new ProductException(
+                        ErrorCode.PRODUCT_MIN_ORDER_QUANTITY_NOT_MET,
+                        " 최소 주문 수량: " + product.getMinOrderQuantity() + ", 요청 수량: " + totalQuantity + ", productId=" + productId
+                );
+            }
+
+            if (product.getMaxOrderQuantity() != null && totalQuantity > product.getMaxOrderQuantity()) {
+                throw new ProductException(
+                        ErrorCode.PRODUCT_MAX_ORDER_QUANTITY_EXCEEDED,
+                        " 최대 주문 수량: " + product.getMaxOrderQuantity() + ", 요청 수량: " + totalQuantity + ", productId=" + productId
+                );
+            }
 
             // 주문 금액 계산을 위해 productMap에 저장
             productMap.put(productId, product);
