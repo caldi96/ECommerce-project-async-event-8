@@ -25,7 +25,7 @@ public class CouponQuantityIncreaseEventListener {
 
     @Async  // Kafka 도입 시 제거
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @DistributedLock(
+    @DistributedLock(   // kafka 도입 후 @DistributedLock을 Kafka Consumer에서 처리
             key = "'coupon:increase:' + #event.couponId()",
             waitTime = 2L,
             leaseTime = 3L  // 수량만 증가하므로 락 보유 시간을 5L -> 3L로 수정
