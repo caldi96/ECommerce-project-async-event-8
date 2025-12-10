@@ -6,7 +6,6 @@ import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.command.IssueCouponCommand;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.CouponFinderService;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.RedisCouponService;
-import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.UserCouponValidatorService;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.Coupon;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.event.CouponIssuedEvent;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.service.CouponDomainService;
@@ -25,7 +24,6 @@ public class IssueCouponUseCase {
     private final CouponDomainService couponDomainService;
     private final UserFinderService userFinderService;
     private final CouponFinderService couponFinderService;
-    private final UserCouponValidatorService userCouponValidatorService;
     private final RedisCouponService redisCouponService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
@@ -46,9 +44,6 @@ public class IssueCouponUseCase {
 
         // 1. 유저 존재 유무 확인 및 조회
         User user = userFinderService.getUser(command.userId());
-
-        // 2. 빠른 중복 체크 (락 없이) - 이미 발급받은 경우 빠르게 실패
-        userCouponValidatorService.checkAlreadyIssued(command.userId(), command.couponId());
 
         // 3. 쿠폰 조회 (비관적 락 제거 - 분산 락으로 동시성 제어)
         Coupon coupon = couponFinderService.getCoupon(command.couponId());
