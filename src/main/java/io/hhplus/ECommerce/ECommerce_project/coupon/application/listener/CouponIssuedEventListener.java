@@ -6,6 +6,7 @@ import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.Coupon;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.UserCoupon;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.event.CouponIssueFailedEvent;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.event.CouponIssuedEvent;
+import io.hhplus.ECommerce.ECommerce_project.coupon.domain.event.CouponQuantityIncreaseEvent;
 import io.hhplus.ECommerce.ECommerce_project.coupon.infrastructure.UserCouponRepository;
 import io.hhplus.ECommerce.ECommerce_project.user.application.service.UserFinderService;
 import io.hhplus.ECommerce.ECommerce_project.user.domain.entity.User;
@@ -35,14 +36,8 @@ public class CouponIssuedEventListener {
     private final CouponFinderService couponFinderService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
-    @Async
+    @Async  // 현재는 @DistributedLock이 스레드 A에 락을 걸었는데 @Async가 새로운 스레드 B를 실행해서 비즈니스 로직이 스레드 B에서 돌아가는 바람에 분산락이 안걸릴 수 있음 -> kafka 도입으로 해결
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-//    @Transactional(propagation = Propagation.REQUIRES_NEW) - 제거 // @DistributedLockAspect AOP가 REQUIRES_NEW 트랜잭션 시작함
-    @DistributedLock(
-            key = "'coupon:increase:' + #event.couponId()",
-            waitTime = 2L,
-            leaseTime = 5L
-    )
     public void handleCouponIssued(CouponIssuedEvent event) {
         log.info("쿠폰 발급 이벤트 처리 시작 - userId: {}, couponId: {}", event.userId(), event.couponId());
 
@@ -55,10 +50,12 @@ public class CouponIssuedEventListener {
             UserCoupon userCoupon = UserCoupon.issueCoupon(user, coupon);
             userCouponRepository.save(userCoupon);
 
-            // 3. 쿠폰 발급 수량 증가 (DB 동기화)
-            coupon.increaseIssuedQuantity();
-
             log.info("쿠폰 발급 DB 저장 성공 - userId: {}, couponId: {}", event.userId(), event.couponId());
+
+            // 3. 수량 증가 이벤트 발행 (집계 데이터는 별도 처리)
+            applicationEventPublisher.publishEvent(
+                    CouponQuantityIncreaseEvent.of(event.couponId())
+            );
 
         } catch (DataIntegrityViolationException e) {
             // DB 유니크 제약 위반 = 이미 발급받음
