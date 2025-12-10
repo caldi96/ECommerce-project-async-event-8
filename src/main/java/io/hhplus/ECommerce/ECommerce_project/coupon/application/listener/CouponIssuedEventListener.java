@@ -1,6 +1,5 @@
 package io.hhplus.ECommerce.ECommerce_project.coupon.application.listener;
 
-import io.hhplus.ECommerce.ECommerce_project.common.annotation.DistributedLock;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.CouponFinderService;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.Coupon;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.UserCoupon;
@@ -16,8 +15,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
