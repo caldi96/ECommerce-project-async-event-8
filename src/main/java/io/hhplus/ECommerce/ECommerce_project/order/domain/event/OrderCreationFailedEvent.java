@@ -10,13 +10,15 @@ import java.util.Map;
  */
 public record OrderCreationFailedEvent(
         Long userId,
-        List<StockReservation> stockReservations,
-        String failureReason
+        Long productId,
+        Integer quantity,
+        String failureReason,
+        boolean needsDbStockRecovery    // DB 재고도 복구해야 하는지 여부
 ) {
     /**
      * 단일 상품 주문 실패
      */
-    public static OrderCreationFailedEvent ofSingleProduct(
+    public static OrderCreationFailedEvent of(
             Long userId,
             Long productId,
             Integer quantity,
@@ -24,8 +26,10 @@ public record OrderCreationFailedEvent(
     ) {
         return new OrderCreationFailedEvent(
                 userId,
-                List.of(new StockReservation(productId, quantity)),
-                failureReason
+                productId,
+                quantity,
+                failureReason,
+                true
         );
     }
 

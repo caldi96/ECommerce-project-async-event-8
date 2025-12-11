@@ -18,7 +18,8 @@ public record CreateOrderResponse(
     BigDecimal finalAmount,
     OrderStatus orderStatus,
     LocalDateTime orderedAt,
-    List<OrderItemResponse> orderItems
+    List<OrderItemResponse> orderItems,
+    String message  // 주문 처리 메시지
 ) {
     public static CreateOrderResponse from(Orders order, List<OrderItem> orderItems) {
         return new CreateOrderResponse(
@@ -33,7 +34,29 @@ public record CreateOrderResponse(
             order.getCreatedAt(),
             orderItems.stream()
                 .map(OrderItemResponse::from)
-                .toList()
+                .toList(),
+            "주문이 완료되었습니다."
+        );
+    }
+
+    /**
+     * 주문 접수 응답 (비동기 처리 중)
+     * - Redis 재고 차감 후 즉시 반환
+     * - 실제 주문 처리는 비동기로 진행
+     */
+    public static CreateOrderResponse accepted(Long userId, Long productId, Integer quantity) {
+        return new CreateOrderResponse(
+                null,  // orderId - 아직 생성 안됨
+                userId,
+                null,  // totalAmount - 계산 중
+                null,  // shippingFee - 계산 중
+                null,  // discountAmount - 계산 중
+                null,  // pointAmount - 계산 중
+                null,  // finalAmount - 계산 중
+                OrderStatus.PENDING,  // 주문 중 상태
+                LocalDateTime.now(),
+                List.of(),  // 빈 주문 아이템 리스트
+                "주문이 접수되었습니다. 처리가 완료되면 알림을 보내드립니다."
         );
     }
 
