@@ -1,10 +1,8 @@
 package io.hhplus.ECommerce.ECommerce_project.order.application.listener;
 
-import io.hhplus.ECommerce.ECommerce_project.common.annotation.DistributedLock;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationFromCartFailedEvent;
-import io.hhplus.ECommerce.ECommerce_project.product.application.service.ProductFinderService;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.RedisStockService;
-import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
+import io.hhplus.ECommerce.ECommerce_project.product.application.service.StockDeductionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -26,7 +24,7 @@ import java.util.Map;
 public class OrderCreationFromCartFailedEventListener {
 
     private final RedisStockService redisStockService;
-    private final ProductFinderService productFinderService;
+    private final StockDeductionService stockDeductionService;
 
     @Async  // TODO: Kafka 도입 시 메시지 컨슈머로 변경 예정
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -45,7 +43,8 @@ public class OrderCreationFromCartFailedEventListener {
             if (event.needsDbStockRecovery()) {
                 for (Map.Entry<Long, Integer> entry : event.sortedEntries()) {
                     try {
-                        recoverStockWithLock(entry.getKey(), entry.getValue());
+                        // 외부 서비스 호출 → AOP 프록시 작동
+                        stockDeductionService.recoverStockWithDistributedLock(entry.getKey(), entry.getValue());
                         dbSuccessCount++;
 
                         log.debug("DB 재고 복구 성공 - productId: {}, quantity: {}",
@@ -87,22 +86,5 @@ public class OrderCreationFromCartFailedEventListener {
             // - 재시도 스케줄링
             // - Kafka 도입 후 DLQ 토픽으로 전송
         }
-    }
-
-    /**
-     * 분산락을 사용한 재고 복구
-     */
-    @DistributedLock(
-            key = "'product:stock:' + #productId",
-            waitTime = 3L,
-            leaseTime = 5L  // 재고 복구 + 판매량 감소
-    )
-    public void recoverStockWithLock(Long productId, Integer quantity) {
-        Product product = productFinderService.getProduct(productId);
-        product.increaseStock(quantity);
-        product.decreaseSoldCount(quantity);
-
-        log.debug("상품 재고 복구 완료 - productId: {}, 현재재고: {}, 판매량: {}",
-                productId, product.getStock(), product.getSoldCount());
     }
 }
