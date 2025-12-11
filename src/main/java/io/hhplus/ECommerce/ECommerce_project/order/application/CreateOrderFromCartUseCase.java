@@ -78,7 +78,7 @@ public class CreateOrderFromCartUseCase {
 
             // 3. 검증 및 계산 이벤트 발행 (비동기)
             applicationEventPublisher.publishEvent(
-                    OrderFromCartValidationRequestedEvent.of(command)
+                    OrderFromCartValidationRequestedEvent.of(command, sortedEntries)
             );
 
             // 4. 주문 접수 완료 응답 즉시 반환

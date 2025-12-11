@@ -66,16 +66,14 @@ public class OrderFromCartValidationEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleValidation(OrderFromCartValidationRequestedEvent event) {
         CreateOrderFromCartCommand command = event.command();
+        List<Map.Entry<Long, Integer>> sortedEntries = event.sortedEntries();
 
-        log.info("장바구니 주문 검증 이벤트 처리 시작 - userId: {}, 장바구니 아이템수: {}",
-                command.userId(), command.cartItemIds().size());
-
-        List<Map.Entry<Long, Integer>> sortedEntries = null;
+        log.info("장바구니 주문 검증 이벤트 처리 시작 - userId: {}, 장바구니 아이템수: {}, 상품수: {}",
+                command.userId(), command.cartItemIds().size(), sortedEntries.size());
 
         try {
             // 검증 및 계산
             ValidatedOrderFromCartData validatedOrderFromCartData = validateAndCalculate(command);
-            sortedEntries = validatedOrderFromCartData.sortedEntries();
 
             log.info("장바구니 주문 검증 성공 - userId: {}, 총 상품수: {}, 최종금액: {}",
                     command.userId(), sortedEntries.size(), validatedOrderFromCartData.finalAmount());
@@ -90,17 +88,13 @@ public class OrderFromCartValidationEventListener {
                     command.userId(), e.getMessage(), e);
 
             // 검증 실패 -> Redis 재고 복구 이벤트 발행
-            if (sortedEntries != null) {
-                applicationEventPublisher.publishEvent(
-                        ValidationFromCartFailedEvent.of(
-                                command.userId(),
-                                sortedEntries,
-                                e.getMessage()
-                        )
-                );
-            } else {
-                log.warn("장바구니 조회 전 실패로 재고 복구 불필요 - userId: {}", command.userId());
-            }
+            applicationEventPublisher.publishEvent(
+                    ValidationFromCartFailedEvent.of(
+                            command.userId(),
+                            sortedEntries,
+                            e.getMessage()
+                    )
+            );
         }
     }
 

@@ -26,7 +26,7 @@ public class StockDeductionService {
         waitTime = 3L,
         leaseTime = 5L  // 재고 차감 + 판매량 증가
     )
-    public void deductStockWithLock(Long productId, Integer quantity) {
+    public void deductStockWithDistributedLock(Long productId, Integer quantity) {
         Product product = productFinderService.getProduct(productId);
         product.decreaseStock(quantity);
         product.increaseSoldCount(quantity);
@@ -43,7 +43,7 @@ public class StockDeductionService {
         waitTime = 3L,
         leaseTime = 5L  // 재고 복구 + 판매량 감소
     )
-    public void recoverStockWithLock(Long productId, Integer quantity) {
+    public void recoverStockWithDistributedLock(Long productId, Integer quantity) {
         Product product = productFinderService.getProduct(productId);
         product.increaseStock(quantity);
         product.decreaseSoldCount(quantity);

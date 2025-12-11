@@ -47,8 +47,8 @@ public class StockDeductionFromCartEventListener {
                 Long productId = entry.getKey();
                 Integer quantity = entry.getValue();
 
-                // 외부 서비스 호출 → AOP 프록시 작동 ✅
-                stockDeductionService.deductStockWithLock(productId, quantity);
+                // 외부 서비스 호출 → AOP 프록시 작동
+                stockDeductionService.deductStockWithDistributedLock(productId, quantity);
                 successEntries.add(entry);
 
                 log.debug("DB 재고 차감 성공 - productId: {}, quantity: {}", productId, quantity);
@@ -92,7 +92,7 @@ public class StockDeductionFromCartEventListener {
         for (Map.Entry<Long, Integer> entry : successEntries) {
             try {
                 // 외부 서비스 호출 → AOP 프록시 작동
-                stockDeductionService.recoverStockWithLock(entry.getKey(), entry.getValue());
+                stockDeductionService.recoverStockWithDistributedLock(entry.getKey(), entry.getValue());
                 log.debug("DB 재고 복구 성공 - productId: {}, quantity: {}",
                         entry.getKey(), entry.getValue());
             } catch (Exception e) {
