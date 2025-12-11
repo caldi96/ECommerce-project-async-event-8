@@ -60,6 +60,25 @@ public record CreateOrderResponse(
         );
     }
 
+    /**
+     * 장바구니 주문 접수 응답 (비동기 처리 중)
+     */
+    public static CreateOrderResponse acceptedForCart(Long userId, int cartItemCount) {
+        return new CreateOrderResponse(
+                null,
+                userId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                OrderStatus.PENDING,
+                LocalDateTime.now(),
+                List.of(),
+                cartItemCount + "개 장바구니 아이템 주문이 접수되었습니다. 처리가 완료되면 알림을 보내드립니다."
+        );
+    }
+
     public record OrderItemResponse(
         Long orderItemId,
         Long productId,
