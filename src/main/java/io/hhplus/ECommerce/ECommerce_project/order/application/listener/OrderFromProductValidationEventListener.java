@@ -10,9 +10,9 @@ import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.UserCoupon;
 import io.hhplus.ECommerce.ECommerce_project.order.application.command.CreateOrderFromProductCommand;
 import io.hhplus.ECommerce.ECommerce_project.order.application.dto.ValidatedOrderFromProductData;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.constants.ShippingPolicy;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderValidationRequestedEvent;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.StockDeductionRequestedEvent;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.ValidationFailedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderFromProductValidationRequestedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.StockDeductionFromProductRequestedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.ValidationFromProductFailedEvent;
 import io.hhplus.ECommerce.ECommerce_project.point.application.service.PointFinderService;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.entity.Point;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.service.PointDomainService;
@@ -42,7 +42,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OrderValidationEventListener {
+public class OrderFromProductValidationEventListener {
 
     private final UserDomainService userDomainService;
     private final UserFinderService userFinderService;
@@ -57,7 +57,7 @@ public class OrderValidationEventListener {
 
     @Async  // TODO: Kafka 도입 시 메시지 컨슈머로 변경 예정
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleValidation(OrderValidationRequestedEvent event) {
+    public void handleValidation(OrderFromProductValidationRequestedEvent event) {
         log.info("주문 검증 이벤트 처리 시작 - userId: {}, productId: {}, quantity: {}",
                 event.command().userId(), event.command().productId(), event.command().quantity());
 
@@ -70,7 +70,7 @@ public class OrderValidationEventListener {
 
             // 검증 성공 -> DB 재고 차감 이벤트 발행
             applicationEventPublisher.publishEvent(
-                    StockDeductionRequestedEvent.of(event.command(), validatedOrderFromProductData)
+                    StockDeductionFromProductRequestedEvent.of(event.command(), validatedOrderFromProductData)
             );
 
         } catch (Exception e) {
@@ -79,7 +79,7 @@ public class OrderValidationEventListener {
 
             // 검증 실패 -> Redis 재고 복구
             applicationEventPublisher.publishEvent(
-                    ValidationFailedEvent.of(
+                    ValidationFromProductFailedEvent.of(
                             event.command().productId(),
                             event.command().quantity(),
                             e.getMessage()

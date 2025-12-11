@@ -1,9 +1,9 @@
 package io.hhplus.ECommerce.ECommerce_project.order.application.listener;
 
 import io.hhplus.ECommerce.ECommerce_project.order.application.service.OrderCompletionService;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCompletedEvent;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationFailedEvent;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationRequestedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderFromProductCompletedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationFromProductFailedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationFromProductRequestedEvent;
 import io.hhplus.ECommerce.ECommerce_project.order.presentation.response.CreateOrderResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +23,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OrderCreationEventListener {
+public class OrderCreationFromProductEventListener {
 
     private final OrderCompletionService orderCompletionService;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -31,7 +31,7 @@ public class OrderCreationEventListener {
     @Async  // TODO: Kafka 도입 시 메시지 컨슈머로 변경 예정
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void handleOrderCreation(OrderCreationRequestedEvent event) {
+    public void handleOrderCreation(OrderCreationFromProductRequestedEvent event) {
         log.info("주문 생성 이벤트 처리 시작 - userId: {}, productId: {}, quantity: {}",
                 event.command().userId(), event.command().productId(), event.command().quantity());
 
@@ -47,7 +47,7 @@ public class OrderCreationEventListener {
 
             // 주문 완료 이벤트 발행 (알림용)
             applicationEventPublisher.publishEvent(
-                    OrderCompletedEvent.of(event.command().userId(), response)
+                    OrderFromProductCompletedEvent.of(event.command().userId(), response)
             );
 
         } catch (Exception e) {
@@ -56,7 +56,7 @@ public class OrderCreationEventListener {
 
             // 주문 생성 실패 -> DB 재고 + Redis 재고 복구
             applicationEventPublisher.publishEvent(
-                    OrderCreationFailedEvent.of(
+                    OrderCreationFromProductFailedEvent.of(
                             event.command().userId(),
                             event.command().productId(),
                             event.command().quantity(),

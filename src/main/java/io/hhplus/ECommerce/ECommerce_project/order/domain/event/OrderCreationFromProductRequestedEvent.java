@@ -3,14 +3,14 @@ package io.hhplus.ECommerce.ECommerce_project.order.domain.event;
 import io.hhplus.ECommerce.ECommerce_project.order.application.command.CreateOrderFromProductCommand;
 import io.hhplus.ECommerce.ECommerce_project.order.application.dto.ValidatedOrderFromProductData;
 
-public record OrderCreationRequestedEvent(
+public record OrderCreationFromProductRequestedEvent(
         CreateOrderFromProductCommand command,
         ValidatedOrderFromProductData validatedOrderFromProductData
 ) {
-    public static OrderCreationRequestedEvent of(
+    public static OrderCreationFromProductRequestedEvent of(
             CreateOrderFromProductCommand command,
             ValidatedOrderFromProductData validatedOrderFromProductData
     ) {
-        return new OrderCreationRequestedEvent(command, validatedOrderFromProductData);
+        return new OrderCreationFromProductRequestedEvent(command, validatedOrderFromProductData);
     }
 }

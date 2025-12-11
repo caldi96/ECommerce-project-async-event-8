@@ -1,6 +1,6 @@
 package io.hhplus.ECommerce.ECommerce_project.order.application.listener;
 
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCompletedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderFromProductCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -16,7 +16,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OrderCompletedEventListener {
+public class OrderFromProductCompletedEventListener {
 
     // TODO: WebSocket/SSE 구현 시 추가
     // private final SimpMessagingTemplate messagingTemplate;
@@ -24,7 +24,7 @@ public class OrderCompletedEventListener {
 
     @Async  // TODO: Kafka 도입 시 메시지 컨슈머로 변경 예정
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleOrderCompleted(OrderCompletedEvent event) {
+    public void handleOrderCompleted(OrderFromProductCompletedEvent event) {
         log.info("=== 주문 완료 알림 ===");
         log.info("사용자 ID: {}", event.userId());
         log.info("주문 ID: {}", event.orderResponse().orderId());

@@ -1,6 +1,6 @@
 package io.hhplus.ECommerce.ECommerce_project.order.application.listener;
 
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.StockDeductionFailedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.StockDeductionFromProductFailedEvent;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.RedisStockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,13 +16,13 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class StockDeductionFailedEventListener {
+public class StockDeductionFromProductFailedEventListener {
 
     private final RedisStockService redisStockService;
 
     @Async  // TODO: Kafka 도입 시 메시지 컨슈머로 변경 예정
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleStockDeductionFailure(StockDeductionFailedEvent event) {
+    public void handleStockDeductionFailure(StockDeductionFromProductFailedEvent event) {
         log.info("DB 재고 차감 실패 재고 복구 시작 - productId: {}, quantity: {}, reason: {}",
                 event.productId(), event.quantity(), event.failureReason());
 

@@ -15,7 +15,7 @@ import io.hhplus.ECommerce.ECommerce_project.order.application.command.CreateOrd
 import io.hhplus.ECommerce.ECommerce_project.order.application.dto.ValidatedOrderFromCartData;
 import io.hhplus.ECommerce.ECommerce_project.order.application.service.OrderCompletionService;
 import io.hhplus.ECommerce.ECommerce_project.order.domain.constants.ShippingPolicy;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationFailedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationFromProductFailedEvent;
 import io.hhplus.ECommerce.ECommerce_project.order.presentation.response.CreateOrderResponse;
 import io.hhplus.ECommerce.ECommerce_project.point.application.service.PointFinderService;
 import io.hhplus.ECommerce.ECommerce_project.point.domain.entity.Point;
@@ -71,7 +71,7 @@ public class CreateOrderFromCartUseCase {
         } catch (Exception e) {
             // 4. 실패 시 비동기 이벤트 발행 (재고 복구)
             applicationEventPublisher.publishEvent(
-                    OrderCreationFailedEvent.ofMultipleProducts(
+                    OrderCreationFromProductFailedEvent.ofMultipleProducts(
                             command.userId(),
                             validatedOrderFromCartData.sortedEntries(),
                             e.getMessage()

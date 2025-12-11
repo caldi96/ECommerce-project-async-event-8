@@ -1,7 +1,7 @@
 package io.hhplus.ECommerce.ECommerce_project.order.application.listener;
 
 import io.hhplus.ECommerce.ECommerce_project.common.annotation.DistributedLock;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationFailedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationFromProductFailedEvent;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.ProductFinderService;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.RedisStockService;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
@@ -21,7 +21,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OrderCreationFailedEventListener {
+public class OrderCreationFromProductFailedEventListener {
 
     private final RedisStockService redisStockService;
     private final ProductFinderService productFinderService;
@@ -38,7 +38,7 @@ public class OrderCreationFailedEventListener {
             waitTime = 3L,
             leaseTime = 5L  // 재고 복구 + 판매량 감소
     )
-    public void handleOrderCreationFailed(OrderCreationFailedEvent event) {
+    public void handleOrderCreationFailed(OrderCreationFromProductFailedEvent event) {
         log.info("주문 생성 실패 재고 복구 시작 - userId: {}, productId: {}, quantity: {}, reason: {}",
                 event.userId(), event.productId(), event.quantity(), event.failureReason());
 

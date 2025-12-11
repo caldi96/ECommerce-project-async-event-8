@@ -1,7 +1,7 @@
 package io.hhplus.ECommerce.ECommerce_project.order.application;
 
 import io.hhplus.ECommerce.ECommerce_project.order.application.command.CreateOrderFromProductCommand;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderValidationRequestedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderFromProductValidationRequestedEvent;
 import io.hhplus.ECommerce.ECommerce_project.order.presentation.response.CreateOrderResponse;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.RedisStockService;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ public class CreateOrderFromProductUseCase {
 
             // 2. 검증 및 계산 이벤트 발행 (비동기)
             applicationEventPublisher.publishEvent(
-                    OrderValidationRequestedEvent.of(command)
+                    OrderFromProductValidationRequestedEvent.of(command)
             );
 
             // 3. 주문 접수 완료 응답 즉시 반환

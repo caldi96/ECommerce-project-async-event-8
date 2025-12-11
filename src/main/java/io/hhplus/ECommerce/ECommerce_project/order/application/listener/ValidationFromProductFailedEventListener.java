@@ -1,6 +1,6 @@
 package io.hhplus.ECommerce.ECommerce_project.order.application.listener;
 
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.ValidationFailedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.ValidationFromProductFailedEvent;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.RedisStockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,13 +16,13 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ValidationFailedEventListener {
+public class ValidationFromProductFailedEventListener {
 
     private final RedisStockService redisStockService;
 
     @Async  // TODO: Kafka 도입 시 메시지 컨슈머로 변경 예정
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleValidationFailure(ValidationFailedEvent event) {
+    public void handleValidationFailure(ValidationFromProductFailedEvent event) {
         log.info("검증 실패 재고 복구 시작 - productId: {}, quantity: {}, reason: {}",
                 event.productId(), event.quantity(), event.reason());
 

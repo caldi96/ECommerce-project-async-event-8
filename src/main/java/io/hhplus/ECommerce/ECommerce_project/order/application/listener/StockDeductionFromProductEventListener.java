@@ -1,9 +1,9 @@
 package io.hhplus.ECommerce.ECommerce_project.order.application.listener;
 
 import io.hhplus.ECommerce.ECommerce_project.common.annotation.DistributedLock;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationRequestedEvent;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.StockDeductionFailedEvent;
-import io.hhplus.ECommerce.ECommerce_project.order.domain.event.StockDeductionRequestedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.OrderCreationFromProductRequestedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.StockDeductionFromProductFailedEvent;
+import io.hhplus.ECommerce.ECommerce_project.order.domain.event.StockDeductionFromProductRequestedEvent;
 import io.hhplus.ECommerce.ECommerce_project.product.application.service.ProductFinderService;
 import io.hhplus.ECommerce.ECommerce_project.product.domain.entity.Product;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class StockDeductionEventListener {
+public class StockDeductionFromProductEventListener {
 
     private final ProductFinderService productFinderService;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -38,7 +38,7 @@ public class StockDeductionEventListener {
             waitTime = 3L,
             leaseTime = 5L  // 재고 차감 + 판매량 증가
     )
-    public void handleStockDeduction(StockDeductionRequestedEvent event) {
+    public void handleStockDeduction(StockDeductionFromProductRequestedEvent event) {
         log.info("DB 재고 차감 이벤트 처리 시작 - productId: {}, quantity: {}",
                 event.command().productId(), event.command().quantity());
 
@@ -55,7 +55,7 @@ public class StockDeductionEventListener {
 
             // DB 재고 차감 성공 -> 주문 생성 이벤트 발행
             applicationEventPublisher.publishEvent(
-                    OrderCreationRequestedEvent.of(event.command(), event.validatedOrderFromProductData())
+                    OrderCreationFromProductRequestedEvent.of(event.command(), event.validatedOrderFromProductData())
             );
 
         } catch (Exception e) {
@@ -64,7 +64,7 @@ public class StockDeductionEventListener {
 
             // DB 재고 차감 실패 -> Redis 재고 복구
             applicationEventPublisher.publishEvent(
-                    StockDeductionFailedEvent.of(
+                    StockDeductionFromProductFailedEvent.of(
                             event.command().productId(),
                             event.command().quantity(),
                             e.getMessage()

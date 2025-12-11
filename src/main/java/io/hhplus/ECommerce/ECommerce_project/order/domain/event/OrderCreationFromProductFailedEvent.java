@@ -8,7 +8,7 @@ import java.util.Map;
  * - 주문 완료 트랜잭션 실패 시 발행
  * - 재고 복구를 비동기로 처리
  */
-public record OrderCreationFailedEvent(
+public record OrderCreationFromProductFailedEvent(
         Long userId,
         Long productId,
         Integer quantity,
@@ -18,13 +18,13 @@ public record OrderCreationFailedEvent(
     /**
      * 단일 상품 주문 실패
      */
-    public static OrderCreationFailedEvent of(
+    public static OrderCreationFromProductFailedEvent of(
             Long userId,
             Long productId,
             Integer quantity,
             String failureReason
     ) {
-        return new OrderCreationFailedEvent(
+        return new OrderCreationFromProductFailedEvent(
                 userId,
                 productId,
                 quantity,
@@ -36,7 +36,7 @@ public record OrderCreationFailedEvent(
     /**
      * 장바구니 주문 실패
      */
-    public static OrderCreationFailedEvent ofMultipleProducts(
+    public static OrderCreationFromProductFailedEvent ofMultipleProducts(
             Long userId,
             List<Map.Entry<Long, Integer>> sortedEntries,
             String failureReason
@@ -46,7 +46,7 @@ public record OrderCreationFailedEvent(
                 .map(entry -> new StockReservation(entry.getKey(), entry.getValue()))
                 .toList();
 
-        return new OrderCreationFailedEvent(userId, reservations, failureReason);
+        return new OrderCreationFromProductFailedEvent(userId, reservations, failureReason);
     }
 
     /**
