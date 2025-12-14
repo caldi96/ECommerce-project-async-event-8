@@ -5,7 +5,6 @@ import io.hhplus.ECommerce.ECommerce_project.coupon.presentation.request.CreateC
 import io.hhplus.ECommerce.ECommerce_project.coupon.presentation.request.IssueCouponRequest;
 import io.hhplus.ECommerce.ECommerce_project.coupon.presentation.request.UpdateCouponRequest;
 import io.hhplus.ECommerce.ECommerce_project.coupon.presentation.response.CouponResponse;
-import io.hhplus.ECommerce.ECommerce_project.coupon.presentation.response.UserCouponResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -68,11 +67,13 @@ public class CouponController {
 
     /**
      * 선착순 쿠폰 발급 (사용자당 1개)
+     * - Redis에서 즉시 발급 처리
+     * - DB 저장은 비동기 이벤트로 처리
      */
     @PostMapping("/issue")
-    public ResponseEntity<UserCouponResponse> issueCoupon(@Valid @RequestBody IssueCouponRequest request) {
-        var userCoupon = issueCouponUseCase.execute(request.toCommand());
-        return ResponseEntity.ok(UserCouponResponse.from(userCoupon));
+    public ResponseEntity<Void> issueCoupon(@Valid @RequestBody IssueCouponRequest request) {
+        issueCouponUseCase.execute(request.toCommand());
+        return ResponseEntity.ok().build();
     }
 
     /**
