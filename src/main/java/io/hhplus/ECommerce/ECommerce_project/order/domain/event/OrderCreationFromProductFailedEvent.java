@@ -1,7 +1,6 @@
 package io.hhplus.ECommerce.ECommerce_project.order.domain.event;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 주문 생성 실패 이벤트
@@ -36,14 +35,9 @@ public record OrderCreationFromProductFailedEvent(
      */
     public static OrderCreationFromProductFailedEvent ofMultipleProducts(
             Long userId,
-            List<Map.Entry<Long, Integer>> sortedEntries,
+            List<StockReservation> reservations,
             String failureReason
     ) {
-
-        List<StockReservation> reservations = sortedEntries.stream()
-                .map(entry -> new StockReservation(entry.getKey(), entry.getValue()))
-                .toList();
-
         return new OrderCreationFromProductFailedEvent(userId, reservations, failureReason, true);
     }
 
