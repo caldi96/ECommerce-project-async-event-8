@@ -1,89 +1,92 @@
 package io.hhplus.ECommerce.ECommerce_project.coupon.application;
 
-import io.hhplus.ECommerce.ECommerce_project.common.annotation.DistributedLock;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.CouponException;
 import io.hhplus.ECommerce.ECommerce_project.common.exception.ErrorCode;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.command.IssueCouponCommand;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.CouponFinderService;
+import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.RedisCouponMetadataService;
 import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.RedisCouponService;
-import io.hhplus.ECommerce.ECommerce_project.coupon.application.service.UserCouponValidatorService;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.Coupon;
-import io.hhplus.ECommerce.ECommerce_project.coupon.domain.entity.UserCoupon;
+import io.hhplus.ECommerce.ECommerce_project.coupon.domain.event.CouponIssuedEvent;
 import io.hhplus.ECommerce.ECommerce_project.coupon.domain.service.CouponDomainService;
-import io.hhplus.ECommerce.ECommerce_project.coupon.infrastructure.UserCouponRepository;
-import io.hhplus.ECommerce.ECommerce_project.user.application.service.UserFinderService;
-import io.hhplus.ECommerce.ECommerce_project.user.domain.entity.User;
 import io.hhplus.ECommerce.ECommerce_project.user.domain.service.UserDomainService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class IssueCouponUseCase {
 
-    private final UserCouponRepository userCouponRepository;
     private final UserDomainService userDomainService;
     private final CouponDomainService couponDomainService;
-    private final UserFinderService userFinderService;
     private final CouponFinderService couponFinderService;
-    private final UserCouponValidatorService userCouponValidatorService;
     private final RedisCouponService redisCouponService;
+    private final RedisCouponMetadataService redisCouponMetadataService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     /**
-     * Redis 분산 락 + REQUIRES_NEW 트랜잭션 자동 적용됨
+     * Redis Lua Script + 비동기 이벤트 발행
+     * - Lua Script가 원자성 보장 (분산 락 불필요)
+     * - Redis 발급 성공 후 즉시 반환
+     * - DB 저장은 비동기 이벤트로 처리
      */
-    @DistributedLock(
-            key = "'coupon:issue:' + #command.couponId()",
-            waitTime = 2L,
-            leaseTime = 5L
-    )
-    public UserCoupon execute(IssueCouponCommand command) {
+    public void execute(IssueCouponCommand command) {
 
         userDomainService.validateId(command.userId());
         couponDomainService.validateId(command.couponId());
 
-        // 1. 유저 존재 유무 확인 및 조회
-        User user = userFinderService.getUser(command.userId());
+        // 1. Redis에서 totalQuantity 조회 (초고속)
+        Integer totalQuantity = getTotalQuantityWithFallback(command.couponId());
 
-        // 2. 빠른 중복 체크 (락 없이) - 이미 발급받은 경우 빠르게 실패
-        userCouponValidatorService.checkAlreadyIssued(command.userId(), command.couponId());
-
-        // 3. 쿠폰 조회 (비관적 락 제거 - 분산 락으로 동시성 제어)
-        Coupon coupon = couponFinderService.getCoupon(command.couponId());
-
-        // 4. 쿠폰 유효성 검증 (활성화 상태, 사용 기간)
-        coupon.validateAvailability();
-
-        // 5. Redis Lua Script로 선착순 발급 시도
+        // 2. Redis Lua Script로 선착순 발급 시도
         boolean issued = redisCouponService.tryIssueCoupon(
                 command.couponId(),
                 command.userId(),
-                coupon.getTotalQuantity()
+                totalQuantity
         );
 
         if (!issued) {
             throw new CouponException(ErrorCode.COUPON_ALL_ISSUED);
         }
 
+        // 3. 비동기 이벤트 발행 (DB 저장은 리스너에서 처리)
+        applicationEventPublisher.publishEvent(
+                CouponIssuedEvent.of(command.userId(), command.couponId())
+        );
 
-        // 6. UserCoupon 생성 및 저장
-        UserCoupon userCoupon = UserCoupon.issueCoupon(user, coupon);
+        log.info("쿠폰 발급 이벤트 발행 완료 - userId: {}, couponId: {}", command.userId(), command.couponId());
+    }
 
-        try {
-            // 7. 쿠폰 발급 수량 증가 (수량 검증 포함)
-            UserCoupon savedCoupon = userCouponRepository.save(userCoupon);
-            coupon.increaseIssuedQuantity();    // DB 수량 동기화
-            return savedCoupon;
-        } catch (DataIntegrityViolationException e) {
-            // DB 저장 실패 시 Redis 롤백
-            redisCouponService.cancelIssueCoupon(command.couponId(), command.userId());
-            // DB 유니크 제약 위반 = 이미 발급받음 (예상치 못한 케이스)
-            throw new CouponException(ErrorCode.COUPON_ALREADY_ISSUED);
-        } catch (Exception e) {
-            // 기타 예외 발생 시에도 Redis 롤백
-            redisCouponService.cancelIssueCoupon(command.couponId(), command.userId());
-            throw new CouponException(ErrorCode.COUPON_ISSUE_FAILED);
+    /**
+     * totalQuantity 조회 (Redis → DB Fallback)
+     * - Redis에 있으면 Redis에서 조회 (초고속)
+     * - 없으면 DB 조회 후 Redis 캐싱 (최초 1회)
+     */
+    private Integer getTotalQuantityWithFallback(Long couponId) {
+        // 1. Redis 시도
+        Integer totalQuantity = redisCouponMetadataService.getTotalQuantity(couponId);
+
+        if (totalQuantity != null) {
+            log.debug("Redis에서 쿠폰 수량 조회 - couponId: {}, totalQuantity: {}", couponId, totalQuantity);
+            return totalQuantity;
         }
+
+        // 2. Redis에 없으면 DB 조회
+        log.info("Redis에 메타데이터 없음, DB 조회 - couponId: {}", couponId);
+        Coupon coupon = couponFinderService.getCoupon(couponId);
+
+        // 3. Redis 캐싱 (다음번엔 빠르게)
+        redisCouponMetadataService.saveCouponMetadata(
+                coupon.getId(),
+                coupon.getTotalQuantity(),
+                coupon.isActive(),
+                coupon.getStartDate(),
+                coupon.getEndDate()
+        );
+
+        return coupon.getTotalQuantity();
     }
 }
