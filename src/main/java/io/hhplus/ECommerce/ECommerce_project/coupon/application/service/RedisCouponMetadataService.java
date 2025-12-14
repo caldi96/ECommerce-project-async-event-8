@@ -1,5 +1,6 @@
 package io.hhplus.ECommerce.ECommerce_project.coupon.application.service;
 
+import io.hhplus.ECommerce.ECommerce_project.coupon.application.dto.CouponMetadataDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -26,6 +27,7 @@ public class RedisCouponMetadataService {
 
     /**
      * 쿠폰 메타데이터 저장 (Hash 구조)
+     * - 단일 putAll 연산으로 네트워크 호출 최소화
      */
     public void saveCouponMetadata(
             Long couponId,
@@ -36,10 +38,15 @@ public class RedisCouponMetadataService {
     ) {
         String key = COUPON_METADATA_PREFIX + couponId;
 
-        redisTemplate.opsForHash().put(key, "totalQuantity", String.valueOf(totalQuantity));
-        redisTemplate.opsForHash().put(key, "isActive", String.valueOf(isActive));
-        redisTemplate.opsForHash().put(key, "startDate", startDate.toString());
-        redisTemplate.opsForHash().put(key, "endDate", endDate.toString());
+        CouponMetadataDto dto = CouponMetadataDto.builder()
+                .totalQuantity(totalQuantity)
+                .isActive(isActive)
+                .startDate(startDate)
+                .endDate(endDate)
+                .build();
+
+        // 레디스 해시 자료구조에 dto에 모든 데이터를 담아 한번만 넣어 성능 저하 문제 해결
+        redisTemplate.opsForHash().putAll(key, dto.toHashMap());
 
         redisTemplate.expire(key, Duration.ofDays(TTL_DAYS));
 
@@ -105,11 +112,12 @@ public class RedisCouponMetadataService {
     }
 
     /**
-     * 쿠폰 메타데이터 전체 조회
+     * 쿠폰 메타데이터 전체 조회 (DTO 반환)
      */
-    public Map<Object, Object> getCouponMetadata(Long couponId) {
+    public CouponMetadataDto getCouponMetadata(Long couponId) {
         String key = COUPON_METADATA_PREFIX + couponId;
-        return redisTemplate.opsForHash().entries(key);
+        Map<Object, Object> hashMap = redisTemplate.opsForHash().entries(key);
+        return CouponMetadataDto.fromHashMap(hashMap);
     }
 
     /**

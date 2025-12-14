@@ -23,8 +23,8 @@ public class ValidationFromProductFailedEventListener {
     @Async  // TODO: Kafka 도입 시 메시지 컨슈머로 변경 예정
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleValidationFailure(ValidationFromProductFailedEvent event) {
-        log.info("검증 실패 재고 복구 시작 - productId: {}, quantity: {}, reason: {}",
-                event.productId(), event.quantity(), event.reason());
+        log.info("검증 실패 재고 복구 시작 - productId: {}, quantity: {}, failureReason: {}",
+                event.productId(), event.quantity(), event.failureReason());
 
         try {
             // Redis 재고 복구
